@@ -8,7 +8,7 @@ import { GenerateWebPath } from './src/utils.js';
 import { PREDEFINED_RULE_SETS } from './src/config.js';
 import { t, setLanguage } from './src/i18n/index.js';
 import yaml from 'js-yaml';
-import { kvGet, kvPut } from './src/kvSqlite.js';
+import { kvGet, kvPut, saveAutoUpdateTask, getAllAutoUpdateTasks, deleteAutoUpdateTask } from './src/kvSqlite.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +16,322 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/src/img', express.static('src/img'))
+
+// 存储自动更新任务的内存对象
+const autoUpdateTasks = new Map();
+
+// 转化为中国时间
+function toChinaTime(date) {
+    if (!(date instanceof Date) || isNaN(date)) return 'N/A';
+
+    // 使用 'zh-CN' locale 和 'Asia/Shanghai' timezone
+    return date.toLocaleString('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false // 使用 24 小时制
+    });
+}
+
+// 服务器启动时恢复自动更新任务
+async function restoreAutoUpdateTasks() {
+    try {
+        const savedTasks = await getAllAutoUpdateTasks();
+
+        for (const taskData of savedTasks) {
+            const { shortCode, originalUrl, selectedRules, customRules, userAgent, configId, lastUpdate, intervalMs } = taskData;
+
+            // 重新创建定时任务
+            const intervalId = setInterval(async () => {
+                try {
+                    const currentLastUpdate = new Date();
+                    await performBackendUpdate(shortCode, originalUrl, selectedRules, customRules, userAgent, configId, {
+                        protocol: 'http',
+                        get: (key) => key === 'host' ? 'localhost:' + PORT : null
+                    });
+
+                    // 更新任务信息中的最后执行时间
+                    const task = autoUpdateTasks.get(shortCode);
+                    if (task) {
+                        task.lastUpdate = currentLastUpdate;
+                        // 更新数据库中的最后执行时间
+                        await saveAutoUpdateTask(task);
+                    }
+                    console.log(`${shortCode} 的自动更新已完成（中国标准时间：${toChinaTime(currentLastUpdate)}）`);
+                } catch (error) {
+                    console.error(`${shortCode} 的自动更新失败：`, error);
+                }
+            }, intervalMs);
+
+            // 存储到内存中
+            autoUpdateTasks.set(shortCode, {
+                intervalId,
+                originalUrl,
+                selectedRules,
+                customRules,
+                userAgent,
+                configId,
+                lastUpdate: new Date(lastUpdate),
+                                intervalMs
+            });
+
+            console.log(`已恢复自动更新任务: ${shortCode}`);
+        }
+
+        console.log(`已成功恢复 ${savedTasks.length} 个自动更新任务`);
+    } catch (error) {
+        console.error('恢复自动更新任务时出错:', error);
+    }
+}
+
+// 启动自动更新任务
+app.post('/auto-update/start', async (req, res) => {
+    const { shortCode, interval, unit, originalUrl, selectedRules, customRules, userAgent, configId } = req.body;
+
+    if (!shortCode || !originalUrl || !interval || !unit) {
+        return res.status(400).json({ error: '缺少必需参数 (shortCode, originalUrl, interval, unit)' });
+    }
+
+    try {
+        // 停止已存在的同名任务
+        if (autoUpdateTasks.has(shortCode)) {
+            clearInterval(autoUpdateTasks.get(shortCode).intervalId);
+            await deleteAutoUpdateTask(shortCode);
+        }
+
+        // 计算间隔时间（毫秒）
+        let intervalMs = interval * 60 * 1000; // 默认分钟
+        if (unit === 'hours') intervalMs = interval * 60 * 60 * 1000;
+        if (unit === 'days') intervalMs = interval * 24 * 60 * 60 * 1000;
+
+        // 立即执行一次更新
+        const lastUpdateDate = new Date();
+        await performBackendUpdate(shortCode, originalUrl, selectedRules, customRules, userAgent, configId, req);
+
+        // 创建定时任务
+        const intervalId = setInterval(async () => {
+            try {
+                const currentLastUpdate = new Date();
+                await performBackendUpdate(shortCode, originalUrl, selectedRules, customRules, userAgent, configId, req);
+
+                // 更新任务信息中的最后执行时间
+                const task = autoUpdateTasks.get(shortCode);
+                if (task) {
+                    task.lastUpdate = currentLastUpdate;
+                    // 更新数据库中的最后执行时间
+                    await saveAutoUpdateTask(task);
+                }
+                console.log(`${shortCode} 的自动更新已完成（中国标准时间：${toChinaTime(currentLastUpdate)}）`);
+            } catch (error) {
+                console.error(`${shortCode} 的自动更新失败：`, error);
+            }
+        }, intervalMs);
+
+        // 存储任务信息
+        const taskInfo = {
+            shortCode,
+         originalUrl,
+         selectedRules,
+         customRules,
+         userAgent,
+         configId,
+         lastUpdate: lastUpdateDate,
+         intervalMs
+        };
+
+        autoUpdateTasks.set(shortCode, {
+            ...taskInfo,
+            intervalId
+        });
+
+        // 保存到数据库
+        await saveAutoUpdateTask(taskInfo);
+
+        const nextUpdateTime = new Date(lastUpdateDate.getTime() + intervalMs);
+
+        res.json({
+            success: true,
+            message: '自动更新已成功启动',
+            nextUpdate: toChinaTime(nextUpdateTime),
+            lastUpdate: toChinaTime(lastUpdateDate)
+        });
+
+    } catch (error) {
+        console.error('启动自动更新时发生错误:', error);
+        res.status(500).json({ error: '启动自动更新失败' });
+    }
+});
+
+// 停止自动更新 - 修复路径匹配问题
+app.post('/auto-update/stop', async (req, res) => {
+    const { shortCode } = req.body;
+
+    if (!shortCode) {
+        return res.status(400).json({ error: '缺少 shortCode 参数' });
+    }
+
+    console.log(`尝试停止自动更新任务: ${shortCode}`);
+
+    if (autoUpdateTasks.has(shortCode)) {
+        const task = autoUpdateTasks.get(shortCode);
+        console.log(`找到任务，停止定时器: ${shortCode}`);
+        clearInterval(task.intervalId);
+        autoUpdateTasks.delete(shortCode);
+
+        // 从数据库删除
+        try {
+            await deleteAutoUpdateTask(shortCode);
+            console.log(`从数据库删除任务: ${shortCode}`);
+        } catch (error) {
+            console.error(`删除数据库任务失败: ${shortCode}`, error);
+        }
+
+        res.json({
+            success: true,
+            message: `自动更新任务 ${shortCode} 已停止`
+        });
+    } else {
+        console.log(`任务不存在: ${shortCode}`);
+        res.status(404).json({ error: '自动更新任务不存在' });
+    }
+});
+
+// 保留原有的路径参数版本，确保兼容性
+app.post('/auto-update/stop/:shortCode', async (req, res) => {
+    const { shortCode } = req.params;
+
+    console.log(`通过路径参数停止自动更新任务: ${shortCode}`);
+
+    if (autoUpdateTasks.has(shortCode)) {
+        const task = autoUpdateTasks.get(shortCode);
+        console.log(`找到任务，停止定时器: ${shortCode}`);
+        clearInterval(task.intervalId);
+        autoUpdateTasks.delete(shortCode);
+
+        // 从数据库删除
+        try {
+            await deleteAutoUpdateTask(shortCode);
+            console.log(`从数据库删除任务: ${shortCode}`);
+        } catch (error) {
+            console.error(`删除数据库任务失败: ${shortCode}`, error);
+        }
+
+        res.json({
+            success: true,
+            message: `自动更新任务 ${shortCode} 已停止`
+        });
+    } else {
+        console.log(`任务不存在: ${shortCode}`);
+        res.status(404).json({ error: '自动更新任务不存在' });
+    }
+});
+
+// 停止所有自动更新任务
+app.post('/auto-update/stop-all', async (req, res) => {
+    try {
+        const taskCount = autoUpdateTasks.size;
+        console.log(`尝试停止所有自动更新任务，共 ${taskCount} 个`);
+
+        let stoppedCount = 0;
+
+        // 停止所有内存中的任务
+        for (const [shortCode, task] of autoUpdateTasks.entries()) {
+            console.log(`停止任务: ${shortCode}`);
+            clearInterval(task.intervalId);
+            stoppedCount++;
+        }
+
+        // 清空内存
+        autoUpdateTasks.clear();
+
+        // 清空数据库中的所有任务
+        try {
+            const allTasks = await getAllAutoUpdateTasks();
+            for (const task of allTasks) {
+                await deleteAutoUpdateTask(task.shortCode);
+            }
+            console.log(`从数据库清空所有任务`);
+        } catch (error) {
+            console.error('清空数据库任务失败:', error);
+        }
+
+        res.json({
+            success: true,
+            message: `已停止所有自动更新任务`,
+            stoppedCount: stoppedCount
+        });
+
+    } catch (error) {
+        console.error('停止所有任务时发生错误:', error);
+        res.status(500).json({ error: '停止所有任务失败' });
+    }
+});
+
+// 获取自动更新状态
+app.get('/auto-update/status/:shortCode', (req, res) => {
+    const { shortCode } = req.params;
+
+    if (autoUpdateTasks.has(shortCode)) {
+        const task = autoUpdateTasks.get(shortCode);
+        const nextUpdateDate = new Date(task.lastUpdate.getTime() + task.intervalMs);
+
+        res.json({
+            active: true,
+            // 使用 toChinaTime 转换显示时间
+            lastUpdate: toChinaTime(task.lastUpdate),
+            nextUpdate: toChinaTime(nextUpdateDate),
+            originalUrl: task.originalUrl
+        });
+    } else {
+        res.json({ active: false, message: '任务不存在或未启动' });
+    }
+});
+
+// 列出所有自动更新任务
+app.get('/auto-update/tasks', (req, res) => {
+    const tasks = {};
+    autoUpdateTasks.forEach((task, shortCode) => {
+        const nextUpdateDate = new Date(task.lastUpdate.getTime() + task.intervalMs);
+        tasks[shortCode] = {
+            originalUrl: task.originalUrl.substring(0, 50) + '...',
+            // 使用 toChinaTime 转换显示时间
+            lastUpdate: toChinaTime(task.lastUpdate),
+            nextUpdate: toChinaTime(nextUpdateDate),
+            intervalMs: task.intervalMs
+        };
+    });
+    res.json(tasks);
+});
+
+// 执行更新的核心函数
+async function performBackendUpdate(shortCode, originalUrl, selectedRules, customRules, userAgent, configId, req) {
+    try {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const configParam = configId ? `&configId=${configId}` : '';
+
+        // 更新短链接存储
+        const shortUrlParams = `?config=${encodeURIComponent(originalUrl)}&ua=${encodeURIComponent(userAgent)}&selectedRules=${encodeURIComponent(JSON.stringify(selectedRules))}&customRules=${encodeURIComponent(JSON.stringify(customRules))}${configParam}`;
+
+        // 更新 KV 存储中的短链接内容
+        kvPut(shortCode, shortUrlParams);
+
+        // console.log(`已更新 ${shortCode} 任务`);
+
+        // 更新任务的上次更新时间
+        if (autoUpdateTasks.has(shortCode)) {
+            autoUpdateTasks.get(shortCode).lastUpdate = new Date();
+        }
+
+        return { success: true, updatedAt: new Date() };
+    } catch (error) {
+        console.error(`Update failed for ${shortCode}:`, error);
+        throw error;
+    }
+}
 
 app.get('/', (req, res) => {
     const lang = req.query.lang || req.headers['accept-language']?.split(',')[0];
@@ -283,6 +599,9 @@ app.use((req, res) => {
     res.status(404).send(t('notFound'));
 });
 
-app.listen(PORT, () => {
+// 在服务器启动时调用恢复函数
+app.listen(PORT, async () => {
     console.log(`Server running at http://localhost:${PORT}`);
+    // 恢复自动更新任务
+    await restoreAutoUpdateTasks();
 });
