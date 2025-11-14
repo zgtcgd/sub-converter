@@ -35,7 +35,8 @@ export class ProxyParser {
             case 'socks':
             case 'socks5': return new Socks5Parser().parse(decodedUrl);
             default:
-                console.error('Unsupported proxy protocol:', type);
+                console.error('Unsupported proxy protocol');
+                // console.error('Unsupported proxy protocol:', type);
                 return null;
         }
     }
