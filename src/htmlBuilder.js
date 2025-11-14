@@ -515,6 +515,8 @@ const autoUpdateFunctions = () => `
     localStorage.removeItem('configType');
     localStorage.removeItem('userAgent');
     localStorage.removeItem('autoUpdateSettings');
+    localStorage.removeItem('subscribeLinksVisible'); // 清除订阅链接显示状态
+    localStorage.removeItem('autoUpdateSectionVisible'); // 清除自动更新部分显示状态
 
     // 重置表单
     document.getElementById('inputTextarea').value = '';
@@ -591,6 +593,12 @@ const autoUpdateFunctions = () => `
 
     if (stopAllBtn) {
       stopAllBtn.addEventListener('click', stopAllAutoUpdateTasks);
+    }
+
+    // 页面加载时恢复自动更新部分显示状态
+    const shouldShowAutoUpdate = localStorage.getItem('autoUpdateSectionVisible') === 'true';
+    if (shouldShowAutoUpdate) {
+      showAutoUpdateSection();
     }
 
     // 页面加载时显示所有自动更新任务
@@ -689,6 +697,8 @@ const autoUpdateFunctions = () => `
     const autoUpdateSection = document.getElementById('autoUpdateSection');
     if (autoUpdateSection) {
       autoUpdateSection.style.display = 'block';
+      // 保存状态到 localStorage
+      localStorage.setItem('autoUpdateSectionVisible', 'true');
       // 显示时刷新任务列表
       displayAutoUpdateTasks();
     }
@@ -698,6 +708,8 @@ const autoUpdateFunctions = () => `
     const autoUpdateSection = document.getElementById('autoUpdateSection');
     if (autoUpdateSection) {
       autoUpdateSection.style.display = 'none';
+      // 保存状态到 localStorage
+      localStorage.setItem('autoUpdateSectionVisible', 'false');
     }
   }
 
@@ -862,7 +874,7 @@ const copyToClipboardFunction = () => `
     const element = document.getElementById(elementId);
     element.select();
     document.execCommand('copy');
-    
+
     const button = element.nextElementSibling;
     const originalText = button.innerHTML;
     button.innerHTML = '<i class="fas fa-check"></i> Copied!';
@@ -895,7 +907,7 @@ const shortenAllUrlsFunction = () => `
     }
 
     const shortenButton = document.querySelector('button[onclick="shortenAllUrls()"]');
-    
+
     try {
       isShortening = true;
       shortenButton.disabled = true;
@@ -942,7 +954,7 @@ const darkModeToggleFunction = () => `
   // Check for saved theme preference or use system preference
   const savedTheme = localStorage.getItem('theme');
   const systemDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  
+
   if (savedTheme) {
     body.setAttribute('data-theme', savedTheme);
     darkModeToggle.innerHTML = savedTheme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
@@ -1122,7 +1134,7 @@ const applyPredefinedRulesFunction = () => `
   function applyPredefinedRules() {
     const predefinedRules = document.getElementById('predefinedRules').value;
     const checkboxes = document.querySelectorAll('.rule-checkbox');
-    
+
     checkboxes.forEach(checkbox => {
       checkbox.checked = false;
     });
@@ -1132,7 +1144,7 @@ const applyPredefinedRulesFunction = () => `
     }
 
     const rulesToApply = ${JSON.stringify(PREDEFINED_RULE_SETS)};
-    
+
     rulesToApply[predefinedRules].forEach(rule => {
       const checkbox = document.getElementById(rule);
       if (checkbox) {
@@ -1229,6 +1241,9 @@ const submitFormFunction = () => `
     subscribeLinksContainer.classList.remove('hide');
     subscribeLinksContainer.classList.add('show');
 
+    // 保存订阅链接容器显示状态
+    localStorage.setItem('subscribeLinksVisible', 'true');
+
     // Scroll to the subscribe part
     subscribeLinksContainer.scrollIntoView({ behavior: 'smooth' });
   }
@@ -1237,7 +1252,7 @@ const submitFormFunction = () => `
     try {
       const urlObj = new URL(url);
       const params = new URLSearchParams(urlObj.search);
-      
+
       // Parse base configuration
       const config = params.get('config');
       if (config) {
@@ -1290,7 +1305,7 @@ const submitFormFunction = () => `
           if (Array.isArray(rules) && rules.length > 0) {
             // Clear existing custom rules
             document.querySelectorAll('.custom-rule').forEach(rule => rule.remove());
-            
+
             // Switch to JSON view and write rules
             switchCustomRulesTab('json');
             const jsonTextarea = document.querySelector('#customRulesJSON textarea');
@@ -1342,17 +1357,17 @@ const submitFormFunction = () => `
   async function autoResolveShortUrl(shortUrl) {
     try {
       const response = await fetch(\`/resolve?url=\${encodeURIComponent(shortUrl)}\`);
-      
+
       if (response.ok) {
         const data = await response.json();
         const originalUrl = data.originalUrl;
-        
+
         // 用原始URL替换输入框中的短链
         document.getElementById('inputTextarea').value = originalUrl;
-        
+
         // 解析原始URL到表单
         parseUrlAndFillForm(originalUrl);
-        
+
         return true;
       } else {
         console.error('Failed to resolve short URL:', await response.text());
@@ -1368,24 +1383,24 @@ const submitFormFunction = () => `
   document.addEventListener('DOMContentLoaded', function() {
     const inputTextarea = document.getElementById('inputTextarea');
     let lastValue = '';
-    
+
     inputTextarea.addEventListener('input', async function() {
       const currentValue = this.value.trim();
-      
+
       if (currentValue && currentValue !== lastValue) {
         // 首先检查是否是短链
         if (isShortUrl(currentValue)) {
           await autoResolveShortUrl(currentValue);
         }
         // 然后检查是否是项目生成的完整链接
-        else if (currentValue.includes('/singbox?') || 
-                 currentValue.includes('/clash?') || 
-                 currentValue.includes('/surge?') || 
+        else if (currentValue.includes('/singbox?') ||
+                 currentValue.includes('/clash?') ||
+                 currentValue.includes('/surge?') ||
                  currentValue.includes('/xray?')) {
           parseUrlAndFillForm(currentValue);
         }
       }
-      
+
       lastValue = currentValue;
     });
   });
@@ -1403,27 +1418,35 @@ const submitFormFunction = () => `
         document.getElementById('advancedOptions').classList.add('show');
       }
     }
-    
+
     // Load userAgent
     const savedUA = localStorage.getItem('userAgent');
     if (savedUA) {
       document.getElementById('customUA').value = savedUA;
     }
-    
+
     // Load configEditor and configType
     const savedConfig = localStorage.getItem('configEditor');
     const savedConfigType = localStorage.getItem('configType');
-    
+
     if (savedConfig) {
       document.getElementById('configEditor').value = savedConfig;
     }
     if (savedConfigType) {
       document.getElementById('configType').value = savedConfigType;
     }
-    
+
     const savedCustomPath = localStorage.getItem('customPath');
     if (savedCustomPath) {
       document.getElementById('customShortCode').value = savedCustomPath;
+    }
+
+    // 恢复订阅链接容器显示状态
+    const subscribeLinksVisible = localStorage.getItem('subscribeLinksVisible') === 'true';
+    const subscribeLinksContainer = document.getElementById('subscribeLinksContainer');
+    if (subscribeLinksVisible && subscribeLinksContainer) {
+      subscribeLinksContainer.classList.remove('hide');
+      subscribeLinksContainer.classList.add('show');
     }
 
     loadSelectedRules();
@@ -1576,7 +1599,7 @@ const customRuleFunctions = () => `
     if (confirm('${t('confirmClearAllRules')}')) {
       document.querySelectorAll('.custom-rule').forEach(rule => rule.remove());
       document.querySelectorAll('.custom-rule-json').forEach(rule => rule.remove());
-      customRuleCount = 0; 
+      customRuleCount = 0;
       updateEmptyMessages();
     }
   }
@@ -1868,7 +1891,7 @@ const generateQRCodeFunction = () => `
       const margin = Math.floor(cellSize * 0.5);
 
       const qrImage = qr.createDataURL(cellSize, margin);
-      
+
       const modal = document.createElement('div');
       modal.className = 'qr-modal';
       modal.innerHTML = \`
@@ -1920,7 +1943,7 @@ const saveConfig = () => `
 
     localStorage.setItem('configEditor', config);
     localStorage.setItem('configType', configType);
-    
+
     fetch('/config?type=' + configType, {
       method: 'POST',
       headers: {
