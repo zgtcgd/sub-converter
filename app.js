@@ -133,16 +133,93 @@ app.get('/shorten-v2', (req, res) => {
     res.type('text/plain').send(shortCode);
 });
 
-app.get(['/b/:code', '/c/:code', '/x/:code', '/s/:code'], (req, res) => {
+// 修改这个路由 - 直接返回内容而不是重定向
+app.get(['/b/:code', '/c/:code', '/x/:code', '/s/:code'], async (req, res) => {
     const { code } = req.params;
     const originalParam = kvGet(code);
-    let originalUrl = null;
-    if (req.path.startsWith('/b/')) originalUrl = `${req.protocol}://${req.get('host')}/singbox${originalParam}`;
-        else if (req.path.startsWith('/c/')) originalUrl = `${req.protocol}://${req.get('host')}/clash${originalParam}`;
-            else if (req.path.startsWith('/x/')) originalUrl = `${req.protocol}://${req.get('host')}/xray${originalParam}`;
-                else if (req.path.startsWith('/s/')) originalUrl = `${req.protocol}://${req.get('host')}/surge${originalParam}`;
-                    if (!originalUrl) return res.status(404).send(t('shortUrlNotFound'));
-                    res.redirect(302, originalUrl);
+
+    if (!originalParam) {
+        return res.status(404).send(t('shortUrlNotFound'));
+    }
+
+    try {
+        // 解析原始参数
+        const urlObj = new URL(originalParam, 'http://localhost');
+        const config = urlObj.searchParams.get('config');
+        const ua = urlObj.searchParams.get('ua') || 'curl/7.74.0';
+        const selectedRules = JSON.parse(urlObj.searchParams.get('selectedRules') || '[]');
+        const customRules = JSON.parse(urlObj.searchParams.get('customRules') || '[]');
+        const configId = urlObj.searchParams.get('configId') || '';
+
+        if (!config) {
+            return res.status(400).send('Missing config parameter');
+        }
+
+        let normalizedInput = config.replace(/\\n/g, '\n').replace(/,/g, '\n');
+
+        let baseConfig;
+        if (configId) {
+            const customConfig = kvGet(configId);
+            if (customConfig) baseConfig = JSON.parse(customConfig);
+        }
+
+        // 根据路径前缀直接生成对应配置
+        if (req.path.startsWith('/b/')) {
+            // Singbox 配置
+            const configBuilder = new SingboxConfigBuilder(normalizedInput, selectedRules, customRules, baseConfig, 'zh-CN', ua);
+            const singboxConfig = await configBuilder.build();
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.send(JSON.stringify(singboxConfig, null, 2));
+
+        } else if (req.path.startsWith('/c/')) {
+            // Clash 配置
+            const configBuilder = new ClashConfigBuilder(normalizedInput, selectedRules, customRules, baseConfig, 'zh-CN', ua);
+            const clashConfig = await configBuilder.build();
+            res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+            res.send(clashConfig);
+
+        } else if (req.path.startsWith('/x/')) {
+            // Xray 配置
+            const proxylist = normalizedInput.split('\n');
+            const finalProxyList = [];
+
+            for (const proxy of proxylist) {
+                if (proxy.startsWith('http://') || proxy.startsWith('https://')) {
+                    try {
+                        const response = await fetch(proxy, { headers: { 'User-Agent': ua } });
+                        let text = await response.text();
+                        let decodedText = Buffer.from(text.trim(), 'base64').toString();
+                        if (decodedText.includes('%')) {
+                            decodedText = decodeURIComponent(decodedText);
+                        }
+                        finalProxyList.push(...decodedText.split('\n'));
+                    } catch (e) {
+                        finalProxyList.push(proxy);
+                    }
+                } else {
+                    finalProxyList.push(proxy);
+                }
+            }
+
+            const finalString = finalProxyList.join('\n');
+            if (!finalString) return res.status(400).send('Missing config parameter');
+            const encoded = Buffer.from(finalString).toString('base64');
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.send(encoded);
+
+        } else if (req.path.startsWith('/s/')) {
+            // Surge 配置
+            const configBuilder = new SurgeConfigBuilder(normalizedInput, selectedRules, customRules, baseConfig, 'zh-CN', ua)
+            .setSubscriptionUrl(req.protocol + '://' + req.get('host') + req.originalUrl);
+            const surgeConfig = await configBuilder.build();
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.setHeader('subscription-userinfo', 'upload=0; download=0; total=10737418240; expire=2546249531');
+            res.send(surgeConfig);
+        }
+    } catch (error) {
+        console.error('Error processing short URL:', error);
+        res.status(500).send('Error processing subscription: ' + error.message);
+    }
 });
 
 app.post('/config', async (req, res) => {
