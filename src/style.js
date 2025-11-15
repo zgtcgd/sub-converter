@@ -816,20 +816,87 @@ export const generateStyles = () => `
     opacity: 0;
     transform: translateY(20px);
     transition: max-height 0.5s var(--transition-timing),
-                opacity 0.3s var(--transition-timing),
-                transform 0.3s var(--transition-timing);
-    padding: 1.5rem 1.5rem;
+    opacity 0.3s var(--transition-timing),
+    transform 0.3s var(--transition-timing);
+    padding: 0 1.5rem;  /* 隐藏时垂直padding为0，水平padding保留 */
+    overflow: hidden;    /* 确保内容被正确隐藏 */
   }
 
   #subscribeLinksContainer.show {
-    max-height: 1000px;
+    max-height: 1200px; /* 增加最大高度确保内容完全显示 */
     opacity: 1;
     transform: translateY(0);
+    padding: 1.5rem 1.5rem;  /* 显示时恢复所有padding */
+    overflow: visible;   /* 显示时取消overflow限制 */
   }
 
   #subscribeLinksContainer.hide {
     max-height: 0;
     opacity: 0;
+    padding: 0 1.5rem;  /* 隐藏时垂直padding为0 */
+    overflow: hidden;    /* 确保内容被正确隐藏 */
+  }
+
+  /* 确保自动更新部分有足够空间 */
+  .auto-update-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    border-left: 4px solid #0d6efd;
+    min-height: auto; /* 确保高度自适应 */
+  }
+
+  /* 确保任务管理区域完全显示 */
+  #autoUpdateTasksManager {
+    display: none;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #dee2e6;
+    overflow: visible; /* 确保内容不被裁剪 */
+  }
+
+  /* 任务列表容器 */
+  .task-list {
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: visible; /* 确保水平方向内容完全显示 */
+  }
+
+  /* 确保停止所有任务按钮完全显示 */
+  #stopAllTasksBtn {
+    margin-top: 10px;
+    width: auto; /* 宽度自适应 */
+    white-space: nowrap; /* 防止文字换行 */
+  }
+
+  /* 深色模式适配 */
+  [data-theme="dark"] .auto-update-section {
+    background: #2d3748;
+    border-left-color: #4299e1;
+  }
+
+  /* 移动端适配 */
+  @media (max-width: 768px) {
+    #subscribeLinksContainer {
+    padding: 0 1rem !important;
+    }
+
+    #subscribeLinksContainer.show {
+    padding: 1rem 1rem !important;
+    max-height: 1500px; /* 移动端增加更多空间 */
+    }
+
+    .auto-update-section {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+    }
+
+    /* 移动端按钮适配 */
+    #stopAllTasksBtn {
+    width: 100%; /* 移动端全宽度 */
+    margin-top: 8px;
+    }
   }
 
   #subscribeLinksContainer .mb-4 {
