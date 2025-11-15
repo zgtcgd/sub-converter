@@ -78,22 +78,6 @@ const translations = {
     invalidJSON: '无效的JSON格式',
     allJSONValid: '所有JSON规则都有效！',
     jsonValidationErrors: 'JSON验证错误',
-    // 自动更新部分
-    autoUpdate: '自动更新',
-    updateInterval: '更新间隔',
-    minutes: '分钟',
-    hours: '小时',
-    days: '天',
-    startAutoUpdate: '开始自动更新',
-    stopAutoUpdate: '停止自动更新',
-    autoUpdateRunning: '自动更新运行中',
-    autoUpdateStopped: '自动更新已停止',
-    lastUpdate: '最后更新',
-    pleaseEnterValidInterval: '请输入有效的更新间隔',
-    pleaseGenerateShortLinkFirst: '请先生成短链接',
-    invalidShortLink: '无效的短链接',
-    autoUpdateFailed: '自动更新失败',
-
     // 规则名称和出站名称的翻译
     outboundNames: {
       'Auto Select': '♻️ 自动选择',
@@ -278,20 +262,6 @@ const translations = {
     invalidJSON: 'Invalid JSON format',
     allJSONValid: 'All JSON rules are valid!',
     jsonValidationErrors: 'JSON validation errors',
-    autoUpdate: 'Auto Update',
-    updateInterval: 'Update Interval',
-    minutes: 'Minutes',
-    hours: 'hours',
-    days: 'days',
-    startAutoUpdate: 'Start Auto Update',
-    stopAutoUpdate: 'Stop Auto Update',
-    autoUpdateRunning: 'Auto Update Running',
-    autoUpdateStopped: 'Auto Update Stopped',
-    lastUpdate: 'Last Update',
-    pleaseEnterValidInterval: 'Please enter a valid interval',
-    pleaseGenerateShortLinkFirst: 'Please generate short link first',
-    invalidShortLink: 'Invalid short link',
-    autoUpdateFailed: 'Auto update failed',
     outboundNames:{
       'Auto Select': '♻️ Auto Select',
       'Node Select': '🚀 Node Select',
@@ -397,6 +367,372 @@ const translations = {
         desc: 'Note:'
       },
     },
+  },
+  'fa': {
+    missingInput: 'پارامتر ورودی وجود ندارد',
+    missingConfig: 'پارامتر پیکربندی وجود ندارد',
+    missingUrl: 'پارامتر URL وجود ندارد',
+    shortUrlNotFound: 'لینک کوتاه پیدا نشد',
+    invalidShortUrl: 'لینک کوتاه نامعتبر',
+    internalError: 'خطای داخلی سرور',
+    notFound: 'یافت نشد',
+    invalidFormat: 'فرمت نامعتبر: ',
+    defaultRules: ['مسدودسازی تبلیغات', 'سرویس‌های گوگل', 'رسانه‌های خارجی', 'تلگرام'],
+    configValidationError: 'خطای اعتبارسنجی پیکربندی: ',
+    pageDescription: 'محول الاشتراک',
+    pageKeywords: 'لینک اشتراک,مبدل,Xray,SingBox,Clash,Surge',
+    pageTitle: 'محول الاشتراک',
+    ogTitle: 'محول الاشتراک',
+    ogDescription: 'یک مبدل قدرتمند لینک اشتراک با پشتیبانی از فرمت‌های مختلف',
+    shareUrls: 'لینک اشتراک',
+    urlPlaceholder: 'لینک‌های اشتراک خود را اینجا وارد کنید...',
+    advancedOptions: 'قوانین سفارشی',
+    baseConfigSettings: 'تنظیمات پیکربندی پایه',
+    baseConfigTooltip: 'پیکربندی پایه خود را اینجا سفارشی کنید',
+    saveConfig: 'ذخیره پیکربندی',
+    clearConfig: 'پاک کردن پیکربندی',
+    convert: 'تبدیل',
+    clear: 'پاک کردن',
+    customPath: 'مسیر سفارشی',
+    savedPaths: 'مسیرهای ذخیره شده',
+    shortenLinks: 'ایجاد لینک‌های کوتاه',
+    ruleSelection: 'انتخاب قوانین',
+    ruleSelectionTooltip: 'مجموعه قوانین مورد نظر خود را انتخاب کنید',
+    custom: 'سفارشی',
+    minimal: 'حداقل',
+    balanced: 'متعادل',
+    comprehensive: 'جامع',
+    addCustomRule: 'افزودن قانون سفارشی',
+    customRuleOutboundName: 'نام خروجی*',
+    customRuleGeoSite: 'قوانین Geo-Site',
+    customRuleGeoSiteTooltip: 'قوانین SingBox Site از https://github.com/lyc8503/sing-box-rules می‌آیند، به این معنی که قوانین سفارشی شما باید در آن مخزن باشد',
+    customRuleGeoSitePlaceholder: 'برای مثال: google,anthropic',
+    customRuleGeoIP: 'قوانین Geo-IP',
+    customRuleGeoIPTooltip: 'قوانین SingBox IP از https://github.com/lyc8503/sing-box-rules می‌آیند، به این معنی که قوانین سفارشی شما باید در آن مخزن باشد',
+    customRuleGeoIPPlaceholder: 'برای مثال: private,cn',
+    customRuleDomainSuffix: 'پسوند دامنه',
+    customRuleDomainSuffixPlaceholder: 'پسوندهای دامنه (با کاما جدا شده)',
+    customRuleDomainKeyword: 'کلمه کلیدی دامنه',
+    customRuleDomainKeywordPlaceholder: 'کلمات کلیدی دامنه (با کاما جدا شده)',
+    customRuleIPCIDR: 'IP CIDR',
+    customRuleIPCIDRPlaceholder: 'IP CIDR (با کاما جدا شده)',
+    customRuleProtocol: 'نوع پروتکل',
+    customRuleProtocolTooltip: 'قوانین پروتکل برای انواع خاص ترافیک. جزئیات بیشتر: https://sing-box.sagernet.org/configuration/route/sniff/',
+    customRuleProtocolPlaceholder: 'پروتکل‌ها (با کاما جدا شده، مثلاً: http,ssh,dns)',
+    removeCustomRule: 'حذف',
+    addCustomRuleJSON: 'افزودن قانون JSON',
+    customRuleJSON: 'قانون JSON',
+    customRuleJSONTooltip: 'افزودن قوانین سفارشی با استفاده از فرمت JSON، پشتیبانی از افزودن دسته‌ای',
+    customRulesSection: 'قوانین سفارشی',
+    customRulesSectionTooltip: 'قوانین مسیریابی سفارشی برای کنترل رفتار مسیریابی ترافیک ایجاد کنید. از حالت‌های ویرایش فرم و JSON با تبدیل دوطرفه پشتیبانی می‌کند.',
+    customRulesForm: 'نمای فرم',
+    customRulesJSON: 'نمای JSON',
+    customRule: 'قانون سفارشی',
+    convertToJSON: 'تبدیل به JSON',
+    convertToForm: 'تبدیل به فرم',
+    validateJSON: 'اعتبارسنجی JSON',
+    clearAll: 'پاک کردن همه',
+    addJSONRule: 'افزودن قانون JSON',
+    noCustomRulesForm: 'روی "افزودن قانون سفارشی" کلیک کنید تا شروع به ایجاد قوانین کنید',
+    noCustomRulesJSON: 'روی "افزودن قانون JSON" کلیک کنید تا شروع به ایجاد قوانین کنید',
+    confirmClearAllRules: 'آیا مطمئن هستید که می‌خواهید همه قوانین سفارشی را پاک کنید؟',
+    noFormRulesToConvert: 'هیچ قانون فرمی برای تبدیل وجود ندارد',
+    noValidJSONToConvert: 'هیچ قانون JSON معتبری برای تبدیل وجود ندارد',
+    convertedFromForm: 'از فرم تبدیل شده',
+    convertedFromJSON: 'از JSON تبدیل شده',
+    mustBeArray: 'باید در قالب آرایه باشد',
+    nameRequired: 'نام قانون الزامی است',
+    invalidJSON: 'فرمت JSON نامعتبر',
+    allJSONValid: 'همه قوانین JSON معتبر هستند!',
+    jsonValidationErrors: 'خطاهای اعتبارسنجی JSON',
+    outboundNames: {
+      'Auto Select': '♻️ انتخاب خودکار',
+      'Node Select': '🚀 انتخاب نود',
+      'Fall Back': '🐟 فال بک',
+      'Ad Block': '🚫 مسدودسازی تبلیغات',
+      'AI Services': '🤖 سرویس‌های هوش مصنوعی',
+      'Bilibili': '📺 بیلی‌بیلی',
+      'Youtube': '▶️ یوتیوب',
+      'Google': '🔍 سرویس‌های گوگل',
+      'Private': '🏠 شبکه خصوصی',
+      'Location:CN': '🔒 سرویس‌های چین',
+      'Telegram': '📲 تلگرام',
+      'Github': '🐱 گیت‌هاب',
+      'Microsoft': 'Ⓜ️ سرویس‌های مایکروسافت',
+      'Apple': '🍏 سرویس‌های اپل',
+      'Social Media': '🌐 شبکه‌های اجتماعی',
+      'Streaming': '🎬 استریمینگ',
+      'Gaming': '🎮 پلتفرم بازی',
+      'Education': '🎓 منابع آموزشی',
+      'Financial': '💰 سرویس‌های مالی',
+      'Cloud Services': '☁️ سرویس‌های ابری',
+      'Non-China': '🌏 خارج از چین',
+      'GLOBAL': 'GLOBAL'
+    },
+    UASettings: 'UserAgent سفارشی',
+    UAtip: 'به طور پیش‌فرض از curl/7.74.0 استفاده می‌کند',
+    apiDoc: {
+      title: 'مستندات API',
+      back: 'بازگشت به خانه',
+      nav: {
+        main: 'رابط‌های اصلی',
+        params: 'توضیحات پارامترها',
+        examples: 'نمونه‌ها',
+        response: 'فرمت پاسخ',
+        more: 'بیشتر'
+      },
+      intro: 'این پروژه از تبدیل انواع اشتراک و تولید لینک کوتاه API پشتیبانی می‌کند و برای اسکریپت‌های خودکار و یکپارچه‌سازی شخص ثالث مناسب است. می‌توانید لینک پارامتردار را مستقیماً در نرم‌افزار پروکسی خود استفاده کنید بدون نیاز به تبدیل دستی.',
+      mainList: [
+        { path: 'GET /singbox?config=...', desc: 'تولید پیکربندی Singbox' },
+        { path: 'GET /clash?config=...', desc: 'تولید پیکربندی Clash' },
+        { path: 'GET /surge?config=...', desc: 'تولید پیکربندی Surge' },
+        { path: 'GET /xray?config=...', desc: 'تولید پیکربندی Xray' },
+        { path: 'GET /shorten?url=...', desc: 'تولید لینک کوتاه' },
+        { path: 'GET /b/:code /c/:code /x/:code /s/:code', desc: 'ریدایرکت لینک کوتاه' },
+        { path: 'POST /config', desc: 'ذخیره پیکربندی سفارشی' }
+      ],
+      params: [
+        { key: 'config', desc: 'اجباری، محتوای اشتراک اصلی (Base64 یا متن ساده)' },
+        { key: 'selectedRules', desc: 'اختیاری، کلید مجموعه قوانین پیش‌فرض یا قوانین سفارشی' },
+        { key: 'customRules', desc: 'اختیاری، قوانین سفارشی (JSON)' },
+        { key: 'lang', desc: 'اختیاری، زبان رابط (zh-CN/en/fa/ru)' },
+        { key: 'ua', desc: 'اختیاری، User-Agent' }
+      ],
+      examples: [
+        {
+          title: 'نمونه Singbox',
+          example: 'https://your-domain/singbox?config=اشتراک یا نود',
+          desc: 'پارامتر config از اشتراک (Base64)(روابط اشتراك متعددة أو عقد مفردة متعددة مفصولة بـ ”,“ أو ”\\n“) یا نود تکی پشتیبانی می‌کند و می‌تواند به عنوان لینک اشتراک به‌روزرسانی لحظه‌ای استفاده شود.'
+        },
+        {
+          title: 'نمونه Clash',
+          example: 'https://your-domain/clash?config=اشتراک یا نود',
+          desc: 'پارامتر config از اشتراک (Base64)(روابط اشتراك متعددة أو عقد مفردة متعددة مفصولة بـ ”,“ أو ”\\n“) یا نود تکی پشتیبانی می‌کند و می‌تواند به عنوان لینک اشتراک به‌روزرسانی لحظه‌ای استفاده شود.'
+        },
+        {
+          title: 'نمونه Surge',
+          example: 'https://your-domain/surge?config=اشتراک یا نود',
+          desc: 'پارامتر config از اشتراک (Base64)(روابط اشتراك متعددة أو عقد مفردة متعددة مفصولة بـ ”,“ أو ”\\n“) یا نود تکی پشتیبانی می‌کند و می‌تواند به عنوان لینک اشتراک به‌روزرسانی لحظه‌ای استفاده شود.'
+        },
+        {
+          title: 'نمونه Xray',
+          example: 'https://your-domain/xray?config=اشتراک یا نود',
+          desc: 'پارامتر config از اشتراک (Base64)(روابط اشتراك متعددة أو عقد مفردة متعددة مفصولة بـ ”,“ أو ”\\n“) یا نود تکی پشتیبانی می‌کند و می‌تواند به عنوان لینک اشتراک به‌روزرسانی لحظه‌ای استفاده شود.'
+        },
+        {
+          title: 'تولید لینک کوتاه',
+          example: 'https://your-domain/shorten?url=https://your-domain/clash?config=اشتراک یا نود',
+          desc: 'پارامتر url لینک کامل مورد نیاز برای کوتاه‌سازی است و می‌تواند به عنوان لینک اشتراک به‌روزرسانی لحظه‌ای استفاده شود.'
+        },
+        {
+          title: 'ریدایرکت لینک کوتاه',
+          example: 'https://your-domain/c/xxxxxxx',
+          desc: 'xxxxxxx کدی است که توسط لینک کوتاه تولید شده و از پیشوندهای /b/، /c/، /s/، /x/ پشتیبانی می‌کند.'
+        },
+        {
+          title: 'ذخیره پیکربندی سفارشی',
+          example: 'POST https://your-domain/config',
+          desc: 'type از clash/singbox/surge/xray پشتیبانی می‌کند و content محتوای پیکربندی (رشته JSON یا YAML) است.',
+          extra: 'Content-Type: application/json\n{\n  "type": "clash",\n  "content": "..."\n}'
+        }
+      ],
+      response: [
+        'رابط‌های پیکربندی YAML/JSON/متن ساده را بازمی‌گردانند.',
+        'رابط لینک کوتاه JSON یا ریدایرکت 302 بازمی‌گرداند.',
+        'در صورت خطا، کد وضعیت 4xx/5xx و پیام خطا بازمی‌گردد.'
+      ],
+      more: [
+        'برای استفاده پیشرفته به <a href="https://github.com/eooce/sub-converter/blob/main/docs/APIDoc.md" target="_blank">APIDoc.md</a> مراجعه کنید.',
+        'در صورت سوال، issue یا PR ارسال کنید.'
+      ],
+      labels: {
+        example: 'نمونه:',
+        desc: 'توضیح:'
+      }
+    }
+  },
+  'ru': {
+    missingInput: 'Отсутствует входной параметр',
+    missingConfig: 'Отсутствует параметр конфигурации',
+    missingUrl: 'Отсутствует параметр URL',
+    shortUrlNotFound: 'Короткая ссылка не найдена',
+    invalidShortUrl: 'Недопустимая короткая ссылка',
+    internalError: 'Внутренняя ошибка сервера',
+    notFound: 'Не найдено',
+    invalidFormat: 'Недопустимый формат: ',
+    defaultRules: ['Блокировка рекламы', 'Сервисы Google', 'Зарубежные медиа', 'Telegram'],
+    configValidationError: 'Ошибка проверки конфигурации: ',
+    pageDescription: 'Конвертер подписки',
+    pageKeywords: 'ссылка подписки,преобразование,Xray,SingBox,Clash,Surge',
+    pageTitle: 'Конвертер подписки',
+    ogTitle: 'Конвертер подписки',
+    ogDescription: 'Мощный инструмент для преобразования ссылок подписки, поддерживающий различные форматы клиентов',
+    shareUrls: 'Ссылка подписки',
+    urlPlaceholder: 'Введите здесь вашу base64(V2rayN) ссылку...',
+    advancedOptions: 'Пользовательские правила',
+    baseConfigSettings: 'Базовые настройки конфигурации',
+    baseConfigTooltip: 'Настройте базовую конфигурацию здесь',
+    saveConfig: 'Сохранить конфигурацию',
+    clearConfig: 'Очистить конфигурацию',
+    convert: 'Преобразовать',
+    clear: 'Очистить',
+    customPath: 'Пользовательский путь',
+    savedPaths: 'Сохранённые пути',
+    shortenLinks: 'Создать короткие ссылки',
+    ruleSelection: 'Выбор правил',
+    ruleSelectionTooltip: 'Выберите нужные наборы правил',
+    custom: 'Пользовательский',
+    minimal: 'Минимальный',
+    balanced: 'Сбалансированный',
+    comprehensive: 'Полный',
+    addCustomRule: 'Добавить пользовательское правило',
+    customRuleOutboundName: 'Имя выхода*',
+    customRuleGeoSite: 'Правила Geo-Site',
+    customRuleGeoSiteTooltip: 'Правила Site в SingBox берутся из https://github.com/lyc8503/sing-box-rules, значит ваши пользовательские правила должны быть в этом репозитории',
+    customRuleGeoSitePlaceholder: 'например: google,anthropic',
+    customRuleGeoIP: 'Правила Geo-IP',
+    customRuleGeoIPTooltip: 'Правила IP в SingBox берутся из https://github.com/lyc8503/sing-box-rules, значит ваши пользовательские правила должны быть в этом репозитории',
+    customRuleGeoIPPlaceholder: 'например: private,cn',
+    customRuleDomainSuffix: 'Суффикс домена',
+    customRuleDomainSuffixPlaceholder: 'Суффиксы домена (через запятую)',
+    customRuleDomainKeyword: 'Ключевые слова домена',
+    customRuleDomainKeywordPlaceholder: 'Ключевые слова домена (через запятую)',
+    customRuleIPCIDR: 'IP CIDR',
+    customRuleIPCIDRPlaceholder: 'IP CIDR (через запятую)',
+    customRuleProtocol: 'Тип протокола',
+    customRuleProtocolTooltip: 'Правила для определённых типов трафика. Подробнее: https://sing-box.sagernet.org/configuration/route/sniff/',
+    customRuleProtocolPlaceholder: 'Протоколы (через запятую, например: http,ssh,dns)',
+    removeCustomRule: 'Удалить',
+    addCustomRuleJSON: 'Добавить правило JSON',
+    customRuleJSON: 'Правило JSON',
+    customRuleJSONTooltip: 'Добавление пользовательских правил в формате JSON, поддерживает пакетное добавление',
+    customRulesSection: 'Пользовательские правила',
+    customRulesSectionTooltip: 'Создавайте пользовательские правила маршрутизации для управления поведением маршрутизации трафика. Поддерживает режимы редактирования формы и JSON с двунаправленным преобразованием.',
+    customRulesForm: 'Вид формы',
+    customRulesJSON: 'Вид JSON',
+    customRule: 'Пользовательское правило',
+    convertToJSON: 'Конвертировать в JSON',
+    convertToForm: 'Конвертировать в форму',
+    validateJSON: 'Проверить JSON',
+    clearAll: 'Очистить всё',
+    addJSONRule: 'Добавить правило JSON',
+    noCustomRulesForm: 'Нажмите "Добавить пользовательское правило" чтобы начать создание правил',
+    noCustomRulesJSON: 'Нажмите "Добавить правило JSON" чтобы начать создание правил',
+    confirmClearAllRules: 'Вы уверены, что хотите очистить все пользовательские правила?',
+    noFormRulesToConvert: 'Нет правил формы для конвертации',
+    noValidJSONToConvert: 'Нет действительных правил JSON для конвертации',
+    convertedFromForm: 'Конвертировано из формы',
+    convertedFromJSON: 'Конвертировано из JSON',
+    mustBeArray: 'Должно быть в формате массива',
+    nameRequired: 'Имя правила обязательно',
+    invalidJSON: 'Неверный формат JSON',
+    allJSONValid: 'Все правила JSON действительны!',
+    jsonValidationErrors: 'Ошибки проверки JSON',
+    outboundNames: {
+      'Auto Select': '♻️ Автовыбор',
+      'Node Select': '🚀 Выбор узла',
+      'Fall Back': '🐟 Резерв',
+      'Ad Block': '🚫 Блокировка рекламы',
+      'AI Services': '🤖 AI-сервисы',
+      'Bilibili': '📺 Bilibili',
+      'Youtube': '▶️ YouTube',
+      'Google': '🔍 Сервисы Google',
+      'Private': '🏠 Локальная сеть',
+      'Location:CN': '🔒 Сервисы Китая',
+      'Telegram': '📲 Telegram',
+      'Github': '🐱 GitHub',
+      'Microsoft': 'Ⓜ️ Сервисы Microsoft',
+      'Apple': '🍏 Сервисы Apple',
+      'Social Media': '🌐 Социальные сети',
+      'Streaming': '🎬 Стриминг',
+      'Gaming': '🎮 Игровые платформы',
+      'Education': '🎓 Образовательные ресурсы',
+      'Financial': '💰 Финансовые сервисы',
+      'Cloud Services': '☁️ Облачные сервисы',
+      'Non-China': '🌏 За пределами Китая',
+      'GLOBAL': 'GLOBAL'
+    },
+    UASettings: 'Пользовательский UserAgent',
+    UAtip: 'По умолчанию используется curl/7.74.0',
+    apiDoc: {
+      title: 'Документация API',
+      back: 'Назад на главную',
+      nav: {
+        main: 'Основные эндпоинты',
+        params: 'Описание параметров',
+        examples: 'Примеры',
+        response: 'Формат ответа',
+        more: 'Подробнее'
+      },
+      intro: 'Этот проект поддерживает различные API для конвертации подписок и генерации коротких ссылок, подходит для автоматизации и сторонней интеграции. Вы можете использовать ссылку с параметрами напрямую в прокси-программе без ручного преобразования.',
+      mainList: [
+        { path: 'GET /singbox?config=...', desc: 'Генерация конфигурации Singbox' },
+        { path: 'GET /clash?config=...', desc: 'Генерация конфигурации Clash' },
+        { path: 'GET /surge?config=...', desc: 'Генерация конфигурации Surge' },
+        { path: 'GET /xray?config=...', desc: 'Генерация конфигурации Xray' },
+        { path: 'GET /shorten?url=...', desc: 'Генерация короткой ссылки' },
+        { path: 'GET /b/:code /c/:code /x/:code /s/:code', desc: 'Переадресация по короткой ссылке' },
+        { path: 'POST /config', desc: 'Сохранить пользовательскую конфигурацию' }
+      ],
+      params: [
+        { key: 'config', desc: 'Обязательный, исходное содержимое подписки (Base64 или текст)' },
+        { key: 'selectedRules', desc: 'Необязательный, ключ набора предустановленных правил или пользовательские правила' },
+        { key: 'customRules', desc: 'Необязательный, пользовательские правила (JSON)' },
+        { key: 'lang', desc: 'Необязательный, язык интерфейса (zh-CN/en/fa/ru)' },
+        { key: 'ua', desc: 'Необязательный, User-Agent' }
+      ],
+      examples: [
+        {
+          title: 'Пример Singbox',
+          example: 'https://your-domain/singbox?config=подписка или нода',
+          desc: 'Параметр config поддерживает подписку (Base64) или отдельную ноду(Несколько ссылок на подписку или несколько отдельных узлов, разделенных символами «,» или «\n»), можно использовать как ссылку для обновления подписки в реальном времени.'
+        },
+        {
+          title: 'Пример Clash',
+          example: 'https://your-domain/clash?config=подписка или нода',
+          desc: 'Параметр config поддерживает подписку (Base64) или отдельную ноду(Несколько ссылок на подписку или несколько отдельных узлов, разделенных символами «,» или «\n»), можно использовать как ссылку для обновления подписки в реальном времени.'
+        },
+        {
+          title: 'Пример Surge',
+          example: 'https://your-domain/surge?config=подписка или нода',
+          desc: 'Параметр config поддерживает подписку (Base64) или отдельную ноду(Несколько ссылок на подписку или несколько отдельных узлов, разделенных символами «,» или «\n»), можно использовать как ссылку для обновления подписки в реальном времени.'
+        },
+        {
+          title: 'Пример Xray',
+          example: 'https://your-domain/xray?config=подписка или нода',
+          desc: 'Параметр config поддерживает подписку (Base64) или отдельную ноду(Несколько ссылок на подписку или несколько отдельных узлов, разделенных символами «,» или «\n»), можно использовать как ссылку для обновления подписки в реальном времени.'
+        },
+        {
+          title: 'Генерация короткой ссылки',
+          example: 'https://your-domain/shorten?url=https://your-domain/clash?config=подписка или нода',
+          desc: 'Параметр url — это полная ссылка для сокращения, можно использовать как ссылку для обновления подписки в реальном времени.'
+        },
+        {
+          title: 'Переадресация по короткой ссылке',
+          example: 'https://your-domain/c/xxxxxxx',
+          desc: 'xxxxxxx — это код, сгенерированный короткой ссылкой, поддерживаются префиксы /b/, /c/, /s/, /x/.'
+        },
+        {
+          title: 'Сохранить пользовательскую конфигурацию',
+          example: 'POST https://your-domain/config',
+          desc: 'type поддерживает clash/singbox/surge/xray, content — содержимое конфигурации (строка JSON или YAML).',
+          extra: 'Content-Type: application/json\n{\n  "type": "clash",\n  "content": "..."\n}'
+        }
+      ],
+      response: [
+        'Эндпоинты конфигурации возвращают YAML/JSON/текст',
+        'Эндпоинты коротких ссылок возвращают JSON или 302 redirect',
+        'В случае ошибки возвращается код состояния 4xx/5xx и сообщение об ошибке.'
+      ],
+      more: [
+        'Для подробностей и расширенного использования смотрите <a href="https://github.com/eooce/sub-converter/blob/main/docs/APIDoc.md" target="_blank">APIDoc.md</a>.',
+        'По вопросам — создавайте issue или PR.'
+      ],
+      labels: {
+        example: 'Пример:',
+        desc: 'Описание:'
+      }
+    }
   }
 };
 
@@ -410,6 +746,10 @@ export function setLanguage(lang) {
     currentLang = lang;
   } else if(checkStartsWith(lang, 'en')) {
     currentLang = 'en-US';
+  } else if(checkStartsWith(lang, 'fa')) {
+    currentLang = 'fa';
+  } else if(checkStartsWith(lang, 'ru')) {
+    currentLang = 'ru';
   } else {
     currentLang = 'zh-CN';
   }
