@@ -93,7 +93,8 @@ app.post('/auto-update/start', async (req, res) => {
     const { shortCode, interval, unit, originalUrl, selectedRules, customRules, userAgent, configId } = req.body;
 
     if (!shortCode || !originalUrl || !interval || !unit) {
-        return res.status(400).json({ error: '缺少必需参数 (shortCode, originalUrl, interval, unit)' });
+        return res.status(400).json({ error: '缺少必需参数' });
+        // return res.status(400).json({ error: '缺少必需参数 (shortCode, originalUrl, interval, unit)' });
     }
 
     try {
@@ -313,13 +314,13 @@ async function performBackendUpdate(shortCode, originalUrl, selectedRules, custo
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const configParam = configId ? `&configId=${configId}` : '';
 
-        // 更新短链接存储
+        // 自动更新会更新所有类型的短链接内容
         const shortUrlParams = `?config=${encodeURIComponent(originalUrl)}&ua=${encodeURIComponent(userAgent)}&selectedRules=${encodeURIComponent(JSON.stringify(selectedRules))}&customRules=${encodeURIComponent(JSON.stringify(customRules))}${configParam}`;
 
-        // 更新 KV 存储中的短链接内容
+        // 更新 KV 存储中的短链接内容 这个参数会被所有4种类型的路由使用
         kvPut(shortCode, shortUrlParams);
 
-        // console.log(`已更新 ${shortCode} 任务`);
+        console.log(`已更新 ${shortCode} 任务`);
 
         // 更新任务的上次更新时间
         if (autoUpdateTasks.has(shortCode)) {
@@ -442,23 +443,106 @@ app.get('/shorten-v2', (req, res) => {
     const originalUrl = req.query.url;
     let shortCode = req.query.shortCode;
     if (!originalUrl) return res.status(400).send('Missing URL parameter');
+
+    // 解析URL，只存储查询参数部分
     const parsedUrl = new URL(originalUrl);
     const queryString = parsedUrl.search;
+
     if (!shortCode) shortCode = GenerateWebPath();
+
+    // 只存储查询参数部分，不包含路径
     kvPut(shortCode, queryString);
+
     res.type('text/plain').send(shortCode);
 });
 
-app.get(['/b/:code', '/c/:code', '/x/:code', '/s/:code'], (req, res) => {
+// 修改短链接路由，直接返回订阅内容而不是重定向
+app.get(['/b/:code', '/c/:code', '/x/:code', '/s/:code'], async (req, res) => {
     const { code } = req.params;
     const originalParam = kvGet(code);
-    let originalUrl = null;
-    if (req.path.startsWith('/b/')) originalUrl = `${req.protocol}://${req.get('host')}/singbox${originalParam}`;
-        else if (req.path.startsWith('/c/')) originalUrl = `${req.protocol}://${req.get('host')}/clash${originalParam}`;
-            else if (req.path.startsWith('/x/')) originalUrl = `${req.protocol}://${req.get('host')}/xray${originalParam}`;
-                else if (req.path.startsWith('/s/')) originalUrl = `${req.protocol}://${req.get('host')}/surge${originalParam}`;
-                    if (!originalUrl) return res.status(404).send(t('shortUrlNotFound'));
-                    res.redirect(302, originalUrl);
+
+    if (!originalParam) {
+        return res.status(404).send(t('shortUrlNotFound'));
+    }
+
+    try {
+        // 解析原始参数（所有类型共用这部分）
+        const urlObj = new URL(originalParam, 'http://localhost');
+        const config = urlObj.searchParams.get('config');
+        const ua = urlObj.searchParams.get('ua') || 'curl/7.74.0';
+        const selectedRules = JSON.parse(urlObj.searchParams.get('selectedRules') || '[]');
+        const customRules = JSON.parse(urlObj.searchParams.get('customRules') || '[]');
+        const configId = urlObj.searchParams.get('configId') || '';
+
+        if (!config) {
+            return res.status(400).send('Missing config parameter');
+        }
+
+        let normalizedInput = config.replace(/\\n/g, '\n').replace(/,/g, '\n');
+
+        let baseConfig;
+        if (configId) {
+            const customConfig = kvGet(configId);
+            if (customConfig) baseConfig = JSON.parse(customConfig);
+        }
+
+        // 根据路径前缀分发到不同的配置生成器
+        if (req.path.startsWith('/b/')) {
+            // Singbox 配置 - 返回 JSON
+            const configBuilder = new SingboxConfigBuilder(normalizedInput, selectedRules, customRules, baseConfig, 'zh-CN', ua);
+            const singboxConfig = await configBuilder.build();
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.send(JSON.stringify(singboxConfig, null, 2));
+
+        } else if (req.path.startsWith('/c/')) {
+            // Clash 配置 - 返回 YAML
+            const configBuilder = new ClashConfigBuilder(normalizedInput, selectedRules, customRules, baseConfig, 'zh-CN', ua);
+            const clashConfig = await configBuilder.build();
+            res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+            res.send(clashConfig);
+
+        } else if (req.path.startsWith('/x/')) {
+            // Xray 配置 - 返回 Base64 编码的文本
+            const proxylist = normalizedInput.split('\n');
+            const finalProxyList = [];
+
+            for (const proxy of proxylist) {
+                if (proxy.startsWith('http://') || proxy.startsWith('https://')) {
+                    try {
+                        const response = await fetch(proxy, { headers: { 'User-Agent': ua } });
+                        let text = await response.text();
+                        let decodedText = Buffer.from(text.trim(), 'base64').toString();
+                        if (decodedText.includes('%')) {
+                            decodedText = decodeURIComponent(decodedText);
+                        }
+                        finalProxyList.push(...decodedText.split('\n'));
+                    } catch (e) {
+                        finalProxyList.push(proxy);
+                    }
+                } else {
+                    finalProxyList.push(proxy);
+                }
+            }
+
+            const finalString = finalProxyList.join('\n');
+            if (!finalString) return res.status(400).send('Missing config parameter');
+            const encoded = Buffer.from(finalString).toString('base64');
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.send(encoded);
+
+        } else if (req.path.startsWith('/s/')) {
+            // Surge 配置 - 返回纯文本
+            const configBuilder = new SurgeConfigBuilder(normalizedInput, selectedRules, customRules, baseConfig, 'zh-CN', ua)
+            .setSubscriptionUrl(req.protocol + '://' + req.get('host') + req.originalUrl);
+            const surgeConfig = await configBuilder.build();
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.setHeader('subscription-userinfo', 'upload=0; download=0; total=10737418240; expire=2546249531');
+            res.send(surgeConfig);
+        }
+    } catch (error) {
+        console.error('Error processing short URL:', error);
+        res.status(500).send('Error processing subscription: ' + error.message);
+    }
 });
 
 app.post('/config', async (req, res) => {
@@ -496,12 +580,10 @@ app.get('/resolve', (req, res) => {
         if (!['b', 'c', 'x', 's'].includes(prefix)) return res.status(400).send(t('invalidShortUrl'));
         const originalParam = kvGet(shortCode);
         if (!originalParam) return res.status(404).send(t('shortUrlNotFound'));
-        let originalUrl;
-        if (prefix === 'b') originalUrl = `${req.protocol}://${req.get('host')}/singbox${originalParam}`;
-            else if (prefix === 'c') originalUrl = `${req.protocol}://${req.get('host')}/clash${originalParam}`;
-                else if (prefix === 'x') originalUrl = `${req.protocol}://${req.get('host')}/xray${originalParam}`;
-                    else if (prefix === 's') originalUrl = `${req.protocol}://${req.get('host')}/surge${originalParam}`;
-                        res.json({ originalUrl });
+
+        // 返回完整的转换URL而不是重定向URL
+        const originalUrl = `${req.protocol}://${req.get('host')}/${prefix}${originalParam}`;
+        res.json({ originalUrl });
     } catch {
         res.status(400).send(t('invalidShortUrl'));
     }
