@@ -139,9 +139,7 @@ class ShadowsocksParser {
         }
     }
 
-    // Helper method to parse server info
     parseServer(serverPart) {
-        // Match IPv6 address
         let match = serverPart.match(/\[([^\]]+)\]:(\d+)/);
         if (match) {
             return [match[1], match[2]];
@@ -149,7 +147,6 @@ class ShadowsocksParser {
         return serverPart.split(':');
     }
 
-    // Helper method to create config object
     createConfig(tag, server, server_port, method, password) {
         return {
             "tag": tag || "Shadowsocks",
@@ -344,13 +341,13 @@ class HttpParser {
             let decodedText;
             try {
                 decodedText = decodeBase64(text.trim());
-                // Check if the decoded text needs URL decoding
+                // 检查解码后的文本是否需要 URL 解码
                 if (decodedText.includes('%')) {
                     decodedText = decodeURIComponent(decodedText);
                 }
             } catch (e) {
                 decodedText = text;
-                // Check if the original text needs URL decoding
+                // 检查原文是否需要 URL 解码
                 if (decodedText.includes('%')) {
                     try {
                         decodedText = decodeURIComponent(decodedText);

@@ -994,26 +994,6 @@ export const generateStyles = () => `
     transition: all var(--transition-speed) var(--transition-timing);
   }
 
-  /* 高级选项展开/收起动画 - Updated to remove height constraints */
-  #advancedOptions {
-    max-height: 0;
-    opacity: 0;
-    overflow: hidden;
-    transform: translateY(-20px);
-    transition: max-height 0.5s var(--transition-timing),
-                opacity 0.3s var(--transition-timing),
-                transform 0.3s var(--transition-timing);
-  }
-
-  #advancedOptions.show {
-    max-height: none;
-    opacity: 1;
-    transform: translateY(0);
-    overflow: visible;
-  }
-
-
-
   /* 按钮悬停动画 */
   .btn {
     transform: translateY(0);

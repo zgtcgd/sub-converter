@@ -25,15 +25,15 @@ export class BaseConfigBuilder {
         const parsedItems = [];
         
         for (const url of urls) {
-            // Try to decode if it might be base64
+            // 尝试解码，看看它是否是 base64 编码
             let processedUrls = this.tryDecodeBase64(url);
             
-            // Handle single URL or array of URLs
+            // 处理单个URL或URL数组
             if(!Array.isArray(processedUrls)){
                 processedUrls = [processedUrls];
             }
 
-            // Handle multiple URLs from a single base64 string
+            // 从单个 base64 字符串处理多个 URL
             for (const processedUrl of processedUrls) {
                 const result = await ProxyParser.parse(processedUrl, this.userAgent);
                 if (Array.isArray(result)) {
@@ -53,32 +53,32 @@ export class BaseConfigBuilder {
     }
 
     tryDecodeBase64(str) {
-        // If the string already has a protocol prefix, return as is
+        // 如果字符串已经包含协议前缀，则按原样返回。
         if (str.includes('://')) {
             return str;
         }
 
         try {
-            // Try to decode as base64
+            // 尝试以 base64 格式解码
             const decoded = decodeBase64(str);
             
-            // Check if decoded content contains multiple links
+            // 检查解码后的内容是否包含多个链接
             if (decoded.includes('\n')) {
-                // Split by newline and filter out empty lines
+                // 按换行符分割并过滤掉空行
                 const multipleUrls = decoded.split('\n').filter(url => url.trim() !== '');
                 
-                // Check if at least one URL is valid
+                // 检查是否至少有一个有效的 URL
                 if (multipleUrls.some(url => url.includes('://'))) {
                     return multipleUrls;
                 }
             }
             
-            // Check if the decoded string looks like a valid URL
+            // 检查解码后的字符串是否像一个有效的 URL
             if (decoded.includes('://')) {
                 return decoded;
             }
         } catch (e) {
-            // If decoding fails, return original string
+            // 如果解码失败，则返回原始字符串
         }
         return str;
     }

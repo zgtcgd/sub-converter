@@ -25,7 +25,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
     convertProxy(proxy) {
         switch(proxy.type) {
             case 'socks5':
-                // The format for a socks5 proxy in Clash config.
+                // 增加socks5支持
                 const clashSocks5 = {
                     name: proxy.tag,
                     type: 'socks5',
@@ -33,7 +33,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     port: parseInt(proxy.server_port),
                 };
 
-                // Add username and password if they exist.
+                // 如果用户名和密码存在则增加
                 if (proxy.username && proxy.password) {
                     clashSocks5.username = proxy.username;
                     clashSocks5.password = proxy.password;
@@ -152,34 +152,34 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     'udp-relay-mode': 'native',
                 };
             default:
-                return proxy; // Return as-is if no specific conversion is defined
+                return proxy;
         }
     }
 
     addProxyToConfig(proxy) {
         this.config.proxies = this.config.proxies || [];
 
-        // Find proxies with the same or partially matching name
+        // 查找名称相同或部分匹配的代理
         const similarProxies = this.config.proxies.filter(p => p.name.includes(proxy.name));
 
-        // Check if there is a proxy with identical data excluding the 'name' field
+        // 检查是否存在数据完全相同但缺少“名称”字段的代理。排除“name”属性
         const isIdentical = similarProxies.some(p => {
-            const { name: _, ...restOfProxy } = proxy; // Exclude the 'name' attribute
-            const { name: __, ...restOfP } = p;       // Exclude the 'name' attribute
+            const { name: _, ...restOfProxy } = proxy;
+            const { name: __, ...restOfP } = p;
             return JSON.stringify(restOfProxy) === JSON.stringify(restOfP);
         });
 
         if (isIdentical) {
-            // If there is a proxy with identical data, skip adding it
+            // 如果存在具有相同数据的代理，则跳过添加步骤
             return;
         }
 
-        // If there are proxies with similar names but different data, modify the name
+        // 如果存在名称相似但数据不同的代理，请修改名称。
         if (similarProxies.length > 0) {
             proxy.name = `${proxy.name} ${similarProxies.length + 1}`;
         }
 
-        // Add the proxy to the configuration
+        // 将代理添加到配置中
         this.config.proxies.push(proxy);
     }
 
@@ -187,11 +187,11 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
         this.config['proxy-groups'] = this.config['proxy-groups'] || [];
         this.config['proxy-groups'].push({
             name: t('outboundNames.Auto Select'),
-                                         type: 'url-test',
-                                         proxies: DeepCopy(proxyList),
-                                         url: 'https://www.gstatic.com/generate_204',
-                                         interval: 300,
-                                         lazy: false
+            type: 'url-test',
+            proxies: DeepCopy(proxyList),
+            url: 'https://www.gstatic.com/generate_204',
+            interval: 300,
+            lazy: false
         });
     }
 
@@ -200,7 +200,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
         this.config['proxy-groups'].unshift({
             type: "select",
             name: t('outboundNames.Node Select'),
-                                            proxies: proxyList
+            proxies: proxyList
         });
     }
 
@@ -210,7 +210,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                 this.config['proxy-groups'].push({
                     type: "select",
                     name: t(`outboundNames.${outbound}`),
-                                                 proxies: [t('outboundNames.Node Select'), ...proxyList]
+                    proxies: [t('outboundNames.Node Select'), ...proxyList]
                 });
             }
         });
@@ -232,7 +232,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
         this.config['proxy-groups'].push({
             type: "select",
             name: t('outboundNames.Fall Back'),
-                                         proxies: [t('outboundNames.Node Select'), ...proxyList]
+            proxies: [t('outboundNames.Node Select'), ...proxyList]
         });
     }
 
@@ -255,8 +255,8 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
         };
 
         // 使用RULE-SET规则格式替代原有的GEOSITE/GEOIP
-        // Rule-Set & Domain-Set:  To reduce DNS leaks and unnecessary DNS queries,
-        // domain & non-IP rules must precede IP rules
+        // 规则集和域集：用于减少 DNS 泄漏和不必要的 DNS 查询,
+        // 域规则和非 IP 规则必须先于 IP 规则
 
         rules.filter(rule => !!rule.domain_suffix || !!rule.domain_keyword).map(rule => {
             rule.domain_suffix.forEach(suffix => {
