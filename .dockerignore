@@ -1,0 +1,20 @@
+# 目录
+.github/
+.git/
+node_modules/
+
+# 文件
+README.md
+.gitignore
+.dockerignore
+Dockerfile
+*.log
+
+# 其他可能不需要的文件
+*.md
+LICENSE
+.dockerignore
+.eslintrc.js
+.prettierrc
+.env
+.env.local
