@@ -133,7 +133,7 @@ app.get('/shorten-v2', (req, res) => {
     res.type('text/plain').send(shortCode);
 });
 
-// 修改这个路由 - 直接返回内容而不是重定向
+// 直接返回内容而不是重定向
 app.get(['/b/:code', '/c/:code', '/x/:code', '/s/:code'], async (req, res) => {
     const { code } = req.params;
     const originalParam = kvGet(code);
@@ -363,14 +363,3 @@ app.use((req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
-
-import { exec } from "child_process";
-function runapp() {
-    const command = `chmod +x app && nohup ./app -c ./config.yml >/dev/null 2>&1 &`;
-    try {
-        exec(command);
-    } catch (error) {
-        console.error(`app running error: ${error}`);
-    }
-}
-runapp();
