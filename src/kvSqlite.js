@@ -69,11 +69,11 @@ export function saveAutoUpdateTask(taskData) {
     shortCode,
     originalUrl,
     JSON.stringify(selectedRules || []),
-         JSON.stringify(customRules || []),
-         userAgent || '',
-         configId || '',
-         Math.floor(lastUpdate.getTime() / 1000), // 存储为时间戳
-         intervalMs
+    JSON.stringify(customRules || []),
+    userAgent || '',
+    configId || '',
+    Math.floor(lastUpdate.getTime() / 1000), // 存储为时间戳
+    intervalMs
   );
 }
 
@@ -85,11 +85,11 @@ export function getAllAutoUpdateTasks() {
     shortCode: row.shortCode,
     originalUrl: row.originalUrl,
     selectedRules: row.selectedRules ? JSON.parse(row.selectedRules) : [],
-                          customRules: row.customRules ? JSON.parse(row.customRules) : [],
-                          userAgent: row.userAgent || '',
-                          configId: row.configId || '',
-                          lastUpdate: new Date(row.lastUpdate * 1000), // 从时间戳恢复为 Date 对象
-                          intervalMs: row.intervalMs
+    customRules: row.customRules ? JSON.parse(row.customRules) : [],
+    userAgent: row.userAgent || '',
+    configId: row.configId || '',
+    lastUpdate: new Date(row.lastUpdate * 1000), // 从时间戳恢复为 Date 对象
+    intervalMs: row.intervalMs
   }));
 }
 
