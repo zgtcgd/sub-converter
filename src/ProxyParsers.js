@@ -111,53 +111,34 @@ class ShadowsocksParser {
             tag = decodeURIComponent(tag);
         }
 
-        // 分割出查询参数部分
-        let queryPartIndex = mainPart.indexOf('?');
-        let queryPart = '';
-        if (queryPartIndex !== -1) {
-            queryPart = mainPart.substring(queryPartIndex + 1);
-            mainPart = mainPart.substring(0, queryPartIndex);
-        }
-
-        let proxyConfig = null;
-
         // Try new format first
         try {
             let [base64, serverPart] = mainPart.split('@');
             // If no @ symbol found, try legacy format
             if (!serverPart) {
-                // ... 遗留格式解析逻辑保持不变 ...
+                // Decode the entire mainPart for legacy format
                 let decodedLegacy = base64ToBinary(mainPart);
+                // Legacy format: method:password@server:port
                 let [methodAndPass, serverInfo] = decodedLegacy.split('@');
                 let [method, password] = methodAndPass.split(':');
                 let [server, server_port] = this.parseServer(serverInfo);
 
-                proxyConfig = this.createConfig(tag, server, server_port, method, password);
-            } else {
-                // Continue with new format parsing
-                let decodedParts = base64ToBinary(decodeURIComponent(base64)).split(':');
-                let method = decodedParts[0];
-                let password = decodedParts.slice(1).join(':');
-                let [server, server_port] = this.parseServer(serverPart);
-
-                proxyConfig = this.createConfig(tag, server, server_port, method, password);
+                return this.createConfig(tag, server, server_port, method, password);
             }
 
-            // --- 核心修改部分：解析查询参数 ---
-            if (queryPart && proxyConfig) {
-                // 调用新的解析函数来处理插件和额外参数
-                this.parsePluginOptions(queryPart, proxyConfig);
-            }
+            // Continue with new format parsing
+            let decodedParts = base64ToBinary(decodeURIComponent(base64)).split(':');
+            let method = decodedParts[0];
+            let password = decodedParts.slice(1).join(':');
+            let [server, server_port] = this.parseServer(serverPart);
 
-            return proxyConfig;
-
+            return this.createConfig(tag, server, server_port, method, password);
         } catch (e) {
             console.error('Failed to parse shadowsocks URL:', e);
             return null;
         }
     }
 
-    // ... parseServer 方法保持不变 ...
     parseServer(serverPart) {
         let match = serverPart.match(/\[([^\]]+)\]:(\d+)/);
         if (match) {
@@ -166,49 +147,6 @@ class ShadowsocksParser {
         return serverPart.split(':');
     }
 
-    // --- 新增方法：解析插件选项 ---
-    parsePluginOptions(queryPart, proxy) {
-        // 对整个查询参数字符串进行 URL 解码
-        const decodedQueryString = decodeURIComponent(queryPart);
-
-        // 将字符串按分号 ';' 分割成参数数组
-        const params = decodedQueryString.split(';');
-
-        params.forEach(param => {
-            // 参数格式可能是 'key=value' 或 'key' (对于布尔值，如 tls)
-            const [key, value] = param.split('=', 2);
-
-            if (!key) return; // 忽略空参数
-
-            // 1. 插件名称
-            if (key === 'plugin') {
-                proxy.plugin_name = value;
-                return;
-            }
-
-            // 2. 插件选项和 Clash 特有字段映射
-            if (key === 'mode') {
-                proxy.plugin_mode = value;
-            } else if (key === 'host' || key === 'sni') {
-                proxy.plugin_host = value;
-            } else if (key === 'path') {
-                proxy.plugin_path = value;
-            } else if (key === 'tls' || key === 'enable-tls') {
-                // 如果没有 value (例如: ;tls), 视为 true
-                proxy.plugin_tls = (value === 'true' || value === '1' || value === undefined);
-            } else if (key === 'skip-cert-verify') {
-                // 对应 ClashConfigBuilder 中的 plugin_allowInsecure
-                proxy.plugin_allowInsecure = (value === 'true' || value === '1' || value === undefined);
-            } else if (key === 'mux') {
-                // Clash 配置中 mux: false/true，这里解析为布尔值
-                proxy.plugin_mux = (value === 'true' || value === '1');
-            } else if (key === 'tfo' || key === 'client-fingerprint' || key === 'tfo_fingerprint') {
-                proxy.client_fingerprint = value;
-            }
-        });
-    }
-
-    // ... createConfig 方法修改为接受额外的插件参数 ...
     createConfig(tag, server, server_port, method, password) {
         return {
             "tag": tag || "Shadowsocks",
@@ -219,7 +157,6 @@ class ShadowsocksParser {
             "password": password,
             "network": 'tcp',
             "tcp_fast_open": false
-            // 注意：plugin 和 plugin-opts 相关的字段是在 parsePluginOptions 中动态添加的
         };
     }
 }
