@@ -25,15 +25,15 @@ export class BaseConfigBuilder {
         const parsedItems = [];
         
         for (const url of urls) {
-            // 尝试解码，看看它是否是 base64 编码
+            // Try to decode if it might be base64
             let processedUrls = this.tryDecodeBase64(url);
             
-            // 处理单个URL或URL数组
+            // Handle single URL or array of URLs
             if(!Array.isArray(processedUrls)){
                 processedUrls = [processedUrls];
             }
 
-            // 从单个 base64 字符串处理多个 URL
+            // Handle multiple URLs from a single base64 string
             for (const processedUrl of processedUrls) {
                 const result = await ProxyParser.parse(processedUrl, this.userAgent);
                 if (Array.isArray(result)) {
@@ -53,32 +53,32 @@ export class BaseConfigBuilder {
     }
 
     tryDecodeBase64(str) {
-        // 如果字符串已经包含协议前缀，则按原样返回。
+        // If the string already has a protocol prefix, return as is
         if (str.includes('://')) {
             return str;
         }
 
         try {
-            // 尝试以 base64 格式解码
+            // Try to decode as base64
             const decoded = decodeBase64(str);
             
-            // 检查解码后的内容是否包含多个链接
+            // Check if decoded content contains multiple links
             if (decoded.includes('\n')) {
-                // 按换行符分割并过滤掉空行
+                // Split by newline and filter out empty lines
                 const multipleUrls = decoded.split('\n').filter(url => url.trim() !== '');
                 
-                // 检查是否至少有一个有效的 URL
+                // Check if at least one URL is valid
                 if (multipleUrls.some(url => url.includes('://'))) {
                     return multipleUrls;
                 }
             }
             
-            // 检查解码后的字符串是否像一个有效的 URL
+            // Check if the decoded string looks like a valid URL
             if (decoded.includes('://')) {
                 return decoded;
             }
         } catch (e) {
-            // 如果解码失败，则返回原始字符串
+            // If decoding fails, return original string
         }
         return str;
     }

@@ -41,7 +41,19 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
 
                 return clashSocks5;
             case 'shadowsocks':
-                return {
+                const pluginOpts = {};
+                // 仅当 proxy.plugin_name 存在时，才构造 plugin-opts
+                if (proxy.plugin_name) {
+                    // Clash 的 plugin-opts 字段是一个对象 (map)
+                    pluginOpts.mode = proxy.plugin_mode || 'websocket';
+                    pluginOpts.host = proxy.plugin_host;
+                    pluginOpts.path = proxy.plugin_path;
+                    pluginOpts.tls = proxy.plugin_tls || false; // 默认 false
+                    pluginOpts.mux = proxy.plugin_mux || false; // 默认 false
+                    pluginOpts.allowInsecure = proxy.plugin_allowInsecure || false; // 默认 false
+                    // 你可以根据实际情况添加或修改其他 plugin-opts 字段
+                }
+                const ssconfig = {
                     name: proxy.tag,
                     type: 'ss',
                     server: proxy.server,
@@ -49,6 +61,17 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     cipher: proxy.method,
                     password: proxy.password
                 };
+
+                // 检查是否有插件配置，如果有，则添加 plugin 和 plugin-opts 字段
+                if (proxy.plugin_name) {
+                    ssconfig.plugin = proxy.plugin_name; // 'v2ray-plugin'
+                    ssconfig['plugin-opts'] = pluginOpts;
+                }
+                // 添加 client-fingerprint 字段
+                if (proxy.client_fingerprint) {
+                    ssconfig['client-fingerprint'] = proxy.client_fingerprint; // 'chrome'
+                }
+                return ssconfig;
             case 'vmess':
                 return {
                     name: proxy.tag,

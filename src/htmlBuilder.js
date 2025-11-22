@@ -29,6 +29,24 @@ const generateHead = () => `
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <style>
       ${generateStyles()}
+      .task-list {
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .task-item {
+        background: #fff;
+        border: 1px solid #e9ecef;
+      }
+      .task-item:hover {
+        background: #f8f9fa;
+      }
+      body[data-theme="dark"] .task-item {
+        background: #2d3748;
+        border-color: #4a5568;
+      }
+      body[data-theme="dark"] .task-item:hover {
+        background: #374151;
+      }
       .api-doc-btn {
         color: #0aa26d;
         background: none;
@@ -45,6 +63,39 @@ const generateHead = () => `
         border: none;
         box-shadow: none;
       }
+      /* 自动更新相关样式 */
+      .auto-update-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+        border-left: 4px solid #0d6efd;
+      }
+      .auto-update-controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .update-interval-input {
+        width: 120px;
+      }
+      .update-status {
+        margin-top: 10px;
+        font-size: 0.9rem;
+      }
+      .update-active {
+        color: #198754;
+        font-weight: bold;
+      }
+      .update-stopped {
+        color: #6c757d;
+      }
+      .last-update-time {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 5px;
+      }
       /* 深色模式适配：支持 prefers-color-scheme 和 data-theme=dark */
       @media (prefers-color-scheme: dark) {
         .api-doc-btn {
@@ -52,6 +103,10 @@ const generateHead = () => `
         }
         .api-doc-btn:hover, .api-doc-btn:focus {
           color: #1f579b !important;
+        }
+        .auto-update-section {
+          background: #2d3748;
+          border-left-color: #4299e1;
         }
       }
       body[data-theme="dark"] .api-doc-btn,
@@ -63,6 +118,10 @@ const generateHead = () => `
       body[data-theme="dark"] .api-doc-btn:focus,
       html[data-theme="dark"] .api-doc-btn:focus {
         color: #1f579b !important;
+      }
+      body[data-theme="dark"] .auto-update-section {
+        background: #2d3748;
+        border-left-color: #4299e1;
       }
     </style>
   </head>
@@ -81,6 +140,7 @@ const generateBody = (xrayUrl, singboxUrl, clashUrl, surgeUrl, baseUrl) => `
           ${generateForm()}
           <div id="subscribeLinksContainer">
             ${generateSubscribeLinks(xrayUrl, singboxUrl, clashUrl, surgeUrl, baseUrl)}
+            ${generateAutoUpdateSection()}
           </div>
         </div>
       </div>
@@ -101,6 +161,41 @@ const generateBody = (xrayUrl, singboxUrl, clashUrl, surgeUrl, baseUrl) => `
   </body>
 `;
 
+// 自动更新部分、选择框
+const generateAutoUpdateSection = () => `
+  <div class="auto-update-section" id="autoUpdateSection" style="display: none;">
+    <h6><i class="fas fa-sync-alt me-2"></i>${t('autoUpdate') || '自动更新'}</h6>
+    <div class="auto-update-controls">
+      <input type="number" class="form-control update-interval-input" id="updateInterval"
+             placeholder="${t('updateInterval') || '更新间隔'}" min="1" max="365" value="60">
+      <select class="form-select" id="updateIntervalUnit" style="width: 100px;">
+        <option value="minutes">${t('minutes') || '分钟'}</option>
+        <option value="hours">${t('hours') || '小时'}</option>
+        <option value="days">${t('days') || '天'}</option>
+      </select>
+      <button type="button" class="btn btn-success" id="startAutoUpdateBtn">
+        <i class="fas fa-play me-2"></i>${t('startAutoUpdate') || '开始自动更新'}
+      </button>
+      <button type="button" class="btn btn-warning" id="stopAutoUpdateBtn" style="display: none;">
+        <i class="fas fa-stop me-2"></i>${t('stopAutoUpdate') || '停止自动更新'}
+      </button>
+    </div>
+    <div class="update-status">
+      <span id="updateStatus" class="update-stopped">${t('autoUpdateStopped') || '自动更新已停止'}</span>
+      <div class="last-update-time" id="lastUpdateTime"></div>
+    </div>
+
+    <!-- 新增：自动更新任务管理区域 -->
+    <div id="autoUpdateTasksManager" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+      <h6><i class="fas fa-tasks me-2"></i>后台运行中的自动更新任务</h6>
+      <div id="autoUpdateTasksList" class="mb-2"></div>
+      <button type="button" class="btn btn-outline-danger btn-sm" id="stopAllTasksBtn">
+        <i class="fas fa-stop-circle me-2"></i>停止所有任务
+      </button>
+    </div>
+  </div>
+`;
+
 const generateApiDocLink = () => `
   <a href="#" id="apiDocLink" class="api-doc-btn" style="position: fixed; top: 13px; right: 200px; z-index: 1001; font-size: 1rem; text-decoration: none; color: #0aa26d;">API文档</a>
 `;
@@ -110,8 +205,6 @@ const generateLanguageSelector = () => `
     <select id="langSelect" class="form-select form-select-sm" style="width: 110px; height: 45px;">
       <option value="zh-CN">简体中文</option>
       <option value="en">English</option>
-      <option value="fa">فارسی</option>
-      <option value="ru">Русский</option>
     </select>
   </div>
 `;
@@ -244,6 +337,8 @@ const generateScripts = () => `
     ${customPathFunctions()}
     ${saveConfig()}
     ${clearConfig()}
+    ${autoUpdateFunctions()}  // 新增自动更新功能
+
     // 动态多语言API文档按钮
     document.addEventListener('DOMContentLoaded', function() {
       function updateApiDocLink() {
@@ -252,9 +347,7 @@ const generateScripts = () => `
         var apiDocText = {
           'zh-CN': 'API文档',
           'en': 'API Doc',
-          'en-US': 'API Doc',
-          'fa': 'مستندات API',
-          'ru': 'Документация API'
+          'en-US': 'API Doc'
         };
         apiDocLink.textContent = apiDocText[lang] || 'API Doc';
         apiDocLink.href = '/api-doc?lang=' + lang;
@@ -263,6 +356,455 @@ const generateScripts = () => `
       document.getElementById('langSelect').addEventListener('change', updateApiDocLink);
     });
   </script>
+`;
+
+// 新增自动更新功能函数
+const autoUpdateFunctions = () => `
+  let currentShortCode = null;
+
+  // 新增：获取所有自动更新任务
+  async function getAllAutoUpdateTasks() {
+    try {
+      const response = await fetch('/auto-update/tasks');
+      if (response.ok) {
+        const tasks = await response.json();
+        return tasks;
+      }
+      return {};
+    } catch (error) {
+      console.error('Error fetching auto-update tasks:', error);
+      return {};
+    }
+  }
+
+  // 新增：显示所有自动更新任务
+  async function displayAutoUpdateTasks() {
+    const tasks = await getAllAutoUpdateTasks();
+    const tasksList = document.getElementById('autoUpdateTasksList');
+    const manager = document.getElementById('autoUpdateTasksManager');
+
+    if (!tasksList || !manager) return;
+
+    if (Object.keys(tasks).length === 0) {
+      manager.style.display = 'none';
+      return;
+    }
+
+    manager.style.display = 'block';
+
+    let html = '<div class="task-list">';
+    for (const [shortCode, task] of Object.entries(tasks)) {
+      html += \`
+        <div class="task-item mb-2 p-2 border rounded">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <strong>\${shortCode}</strong>
+              <div class="text-muted small">\${task.originalUrl}</div>
+              <div class="text-muted small">
+                最后更新: \${task.lastUpdate} | 下次更新: \${task.nextUpdate}
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="stopSpecificTask('\${shortCode}')">
+              <i class="fas fa-stop"></i>
+            </button>
+          </div>
+        </div>
+      \`;
+    }
+    html += '</div>';
+    tasksList.innerHTML = html;
+  }
+
+  // 停止所有任务 - 使用新的API
+  async function stopAllAutoUpdateTasks() {
+    try {
+      const tasks = await getAllAutoUpdateTasks();
+      const taskCount = Object.keys(tasks).length;
+
+      if (taskCount === 0) {
+        console.log('没有运行中的自动更新任务');
+        return 0;
+      }
+
+      if (!confirm('确定要停止所有 ' + taskCount + ' 个自动更新任务吗？')) {
+        return 0;
+      }
+
+      console.log('正在停止所有自动更新任务...');
+      const response = await fetch('/auto-update/stop-all', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('HTTP error! status: ' + response.status);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('成功停止所有任务:', result);
+        alert('已停止 ' + result.stoppedCount + ' 个自动更新任务');
+        await displayAutoUpdateTasks();
+        updateUIForAutoUpdate(false);
+        currentShortCode = null;
+        return result.stoppedCount;
+      } else {
+        throw new Error(result.error || '停止所有任务失败');
+      }
+    } catch (error) {
+      console.error('Error stopping all tasks:', error);
+      alert('停止所有任务时发生错误: ' + error.message);
+      return 0;
+    }
+  }
+
+  // 停止特定任务 - 使用正确的API路径
+  async function stopSpecificTask(shortCode) {
+    if (!confirm('确定要停止任务 ' + shortCode + ' 吗？')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/auto-update/stop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shortCode: shortCode
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('已停止任务: ' + shortCode);
+        await displayAutoUpdateTasks();
+
+        // 如果停止的是当前任务，更新UI状态
+        if (currentShortCode === shortCode) {
+          updateUIForAutoUpdate(false);
+          currentShortCode = null;
+        }
+      } else {
+        alert('停止任务失败: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error stopping task:', error);
+      alert('停止任务时发生错误');
+    }
+  }
+
+  // 修改：增强的清除表单数据函数
+  async function clearFormData() {
+    console.log('开始清除表单数据...');
+
+    // 停止所有相关的自动更新任务
+    const stoppedCount = await stopAllAutoUpdateTasks();
+    console.log('停止任务结果:', stoppedCount);
+
+    // 清除本地存储
+    localStorage.removeItem('inputTextarea');
+    localStorage.removeItem('advancedToggle');
+    localStorage.removeItem('selectedRules');
+    localStorage.removeItem('predefinedRules');
+    localStorage.removeItem('configEditor');
+    localStorage.removeItem('configType');
+    localStorage.removeItem('userAgent');
+    localStorage.removeItem('autoUpdateSettings');
+    localStorage.removeItem('subscribeLinksVisible'); // 清除订阅链接显示状态
+    localStorage.removeItem('autoUpdateSectionVisible'); // 清除自动更新部分显示状态
+
+    // 重置表单
+    document.getElementById('inputTextarea').value = '';
+    document.getElementById('advancedToggle').checked = false;
+    const event = new Event('change');
+    document.getElementById('advancedToggle').dispatchEvent(event);
+    document.getElementById('configEditor').value = '';
+    document.getElementById('configType').value = 'singbox';
+    document.getElementById('customUA').value = '';
+
+    localStorage.removeItem('customPath');
+    document.getElementById('customShortCode').value = '';
+
+    // 重置规则选择
+    document.getElementById('predefinedRules').value = 'custom';
+    document.querySelectorAll('.rule-checkbox').forEach(checkbox => {
+      checkbox.checked = false;
+    });
+
+    // 清除自定义规则
+    document.querySelectorAll('.custom-rule').forEach(rule => rule.remove());
+    const jsonTextarea = document.querySelector('#customRulesJSON textarea');
+    if (jsonTextarea) {
+      jsonTextarea.value = '';
+    }
+
+    // 隐藏自动更新部分
+    hideAutoUpdateSection();
+
+    // 重置订阅链接显示区域
+    const subscribeLinksContainer = document.getElementById('subscribeLinksContainer');
+    subscribeLinksContainer.classList.remove('show');
+    subscribeLinksContainer.classList.add('hide');
+
+    // 清空生成的链接
+    document.getElementById('xrayLink').value = '';
+    document.getElementById('singboxLink').value = '';
+    document.getElementById('clashLink').value = '';
+    document.getElementById('surgeLink').value = '';
+
+    // 重置自动更新UI状态
+    updateUIForAutoUpdate(false);
+    currentShortCode = null;
+
+    // 延迟重置容器显示
+    setTimeout(() => {
+      subscribeLinksContainer.classList.remove('hide');
+    }, 500);
+
+    // 显示清除成功提示
+    let message = '表单已清除';
+    if (stoppedCount > 0) {
+      message += '，并停止了 ' + stoppedCount + ' 个自动更新任务';
+    } else {
+      message += '，没有运行中的自动更新任务';
+    }
+    alert(message);
+    console.log('清除表单完成:', message);
+  }
+
+  // 修改：页面加载时检查自动更新状态
+  document.addEventListener('DOMContentLoaded', function() {
+    const startBtn = document.getElementById('startAutoUpdateBtn');
+    const stopBtn = document.getElementById('stopAutoUpdateBtn');
+    const stopAllBtn = document.getElementById('stopAllTasksBtn');
+
+    if (startBtn) {
+      startBtn.addEventListener('click', startAutoUpdate);
+    }
+
+    if (stopBtn) {
+      stopBtn.addEventListener('click', stopAutoUpdate);
+    }
+
+    if (stopAllBtn) {
+      stopAllBtn.addEventListener('click', stopAllAutoUpdateTasks);
+    }
+
+    // 页面加载时恢复自动更新部分显示状态
+    const shouldShowAutoUpdate = localStorage.getItem('autoUpdateSectionVisible') === 'true';
+    if (shouldShowAutoUpdate) {
+      showAutoUpdateSection();
+    }
+
+    // 页面加载时显示所有自动更新任务
+    setTimeout(() => {
+      displayAutoUpdateTasks();
+    }, 1000);
+
+    // 监听链接变化，检查自动更新状态
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
+          const target = mutation.target;
+          if (target.id === 'singboxLink' && target.value.includes('/b/')) {
+            setTimeout(() => {
+              checkCurrentLinkForAutoUpdate();
+            }, 500);
+          }
+        }
+      });
+    });
+
+    const singboxLink = document.getElementById('singboxLink');
+    if (singboxLink) {
+      observer.observe(singboxLink, { attributes: true });
+    }
+  });
+
+  // 新增：检查当前链接是否有对应的自动更新任务
+  async function checkCurrentLinkForAutoUpdate() {
+    const singboxLink = document.getElementById('singboxLink');
+    if (!singboxLink || !singboxLink.value) return;
+
+    // 从Singbox链接中提取短代码
+    const match = singboxLink.value.match(/\\/b\\/([^\\/]+)/);
+    if (!match) return;
+
+    const shortCode = match[1];
+
+    try {
+      const response = await fetch('/auto-update/status/' + shortCode);
+      const status = await response.json();
+
+      if (status.active) {
+        currentShortCode = shortCode;
+        updateUIForAutoUpdate(true);
+        updateLastUpdateTime(status.lastUpdate);
+        console.log('检测到自动更新任务:', shortCode);
+      }
+    } catch (error) {
+      console.error('Error checking auto-update status:', error);
+    }
+  }
+
+  // 修改：停止自动更新函数，支持指定短代码
+  async function stopAutoUpdate() {
+    let shortCodeToStop = currentShortCode;
+
+    if (!shortCodeToStop) {
+      // 如果没有currentShortCode，尝试从Singbox链接中提取
+      const singboxLink = document.getElementById('singboxLink');
+      if (singboxLink && singboxLink.value.includes('/b/')) {
+        const match = singboxLink.value.match(/\\/b\\/([^\\/]+)/);
+        if (match) {
+          shortCodeToStop = match[1];
+        }
+      }
+    }
+
+    if (!shortCodeToStop) {
+      alert('没有找到要停止的自动更新任务');
+      return;
+    }
+
+    try {
+      const response = await fetch('/auto-update/stop/' + shortCodeToStop, {
+        method: 'POST'
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        updateUIForAutoUpdate(false);
+        currentShortCode = null;
+        alert('自动更新已停止');
+        await displayAutoUpdateTasks();
+      } else {
+        alert('停止自动更新失败: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error stopping auto-update:', error);
+      alert('停止自动更新时发生错误');
+    }
+  }
+
+  function showAutoUpdateSection() {
+    const autoUpdateSection = document.getElementById('autoUpdateSection');
+    if (autoUpdateSection) {
+      autoUpdateSection.style.display = 'block';
+      // 保存状态到 localStorage
+      localStorage.setItem('autoUpdateSectionVisible', 'true');
+      // 显示时刷新任务列表
+      displayAutoUpdateTasks();
+    }
+  }
+
+  function hideAutoUpdateSection() {
+    const autoUpdateSection = document.getElementById('autoUpdateSection');
+    if (autoUpdateSection) {
+      autoUpdateSection.style.display = 'none';
+      // 保存状态到 localStorage
+      localStorage.setItem('autoUpdateSectionVisible', 'false');
+    }
+  }
+
+  function updateUIForAutoUpdate(isActive) {
+    const startBtn = document.getElementById('startAutoUpdateBtn');
+    const stopBtn = document.getElementById('stopAutoUpdateBtn');
+    const status = document.getElementById('updateStatus');
+
+    if (startBtn) startBtn.style.display = isActive ? 'none' : 'inline-block';
+    if (stopBtn) stopBtn.style.display = isActive ? 'inline-block' : 'none';
+    if (status) {
+      status.textContent = isActive ? '自动更新运行中（后端服务）' : '自动更新已停止';
+      status.className = isActive ? 'update-active' : 'update-stopped';
+    }
+  }
+
+  async function startAutoUpdate() {
+    const intervalInput = document.getElementById('updateInterval');
+    const unitSelect = document.getElementById('updateIntervalUnit');
+    const interval = parseInt(intervalInput.value);
+
+    if (!interval || interval < 1) {
+      alert('请输入有效的更新间隔');
+      return;
+    }
+
+    const singboxLink = document.getElementById('singboxLink');
+    if (!singboxLink || !singboxLink.value.includes('/b/')) {
+      alert('请先生成短链接');
+      return;
+    }
+
+    const match = singboxLink.value.match(/\\/b\\/([^\\/]+)/);
+    if (!match) {
+      alert('无效的短链接');
+      return;
+    }
+
+    currentShortCode = match[1];
+
+    const inputTextarea = document.getElementById('inputTextarea');
+    const originalUrl = inputTextarea ? inputTextarea.value.trim() : '';
+    const userAgent = document.getElementById('customUA').value || 'curl/7.74.0';
+
+    let selectedRules;
+    const predefinedRules = document.getElementById('predefinedRules').value;
+    if (predefinedRules !== 'custom') {
+      selectedRules = predefinedRules;
+    } else {
+      selectedRules = Array.from(document.querySelectorAll('input[name="selectedRules"]:checked'))
+        .map(checkbox => checkbox.value);
+    }
+
+    const customRules = parseCustomRules();
+    const configId = new URLSearchParams(window.location.search).get('configId') || '';
+
+    try {
+      const response = await fetch('/auto-update/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shortCode: currentShortCode,
+          interval: interval,
+          unit: unitSelect.value,
+          originalUrl: originalUrl,
+          selectedRules: selectedRules,
+          customRules: customRules,
+          userAgent: userAgent,
+          configId: configId
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        updateUIForAutoUpdate(true);
+        alert('自动更新已启动！即使关闭页面也会继续运行。短代码: ' + currentShortCode);
+        await displayAutoUpdateTasks();
+      } else {
+        alert('启动自动更新失败: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error starting auto-update:', error);
+      alert('启动自动更新时发生错误');
+    }
+  }
+
+  function updateLastUpdateTime(dateString) {
+    const lastUpdateElement = document.getElementById('lastUpdateTime');
+    if (lastUpdateElement && dateString) {
+      lastUpdateElement.textContent = '最后更新: ' + dateString;
+    }
+  }
 `;
 
 const customPathFunctions = () => `
@@ -332,7 +874,7 @@ const copyToClipboardFunction = () => `
     const element = document.getElementById(elementId);
     element.select();
     document.execCommand('copy');
-    
+
     const button = element.nextElementSibling;
     const originalText = button.innerHTML;
     button.innerHTML = '<i class="fas fa-check"></i> Copied!';
@@ -365,7 +907,7 @@ const shortenAllUrlsFunction = () => `
     }
 
     const shortenButton = document.querySelector('button[onclick="shortenAllUrls()"]');
-    
+
     try {
       isShortening = true;
       shortenButton.disabled = true;
@@ -412,7 +954,7 @@ const darkModeToggleFunction = () => `
   // Check for saved theme preference or use system preference
   const savedTheme = localStorage.getItem('theme');
   const systemDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  
+
   if (savedTheme) {
     body.setAttribute('data-theme', savedTheme);
     darkModeToggle.innerHTML = savedTheme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
@@ -592,7 +1134,7 @@ const applyPredefinedRulesFunction = () => `
   function applyPredefinedRules() {
     const predefinedRules = document.getElementById('predefinedRules').value;
     const checkboxes = document.querySelectorAll('.rule-checkbox');
-    
+
     checkboxes.forEach(checkbox => {
       checkbox.checked = false;
     });
@@ -602,7 +1144,7 @@ const applyPredefinedRulesFunction = () => `
     }
 
     const rulesToApply = ${JSON.stringify(PREDEFINED_RULE_SETS)};
-    
+
     rulesToApply[predefinedRules].forEach(rule => {
       const checkbox = document.getElementById(rule);
       if (checkbox) {
@@ -655,18 +1197,14 @@ const submitFormFunction = () => `
     const inputString = formData.get('input');
 
     const userAgent = document.getElementById('customUA').value;
-    
+
     // Save form data to localStorage
     localStorage.setItem('inputTextarea', inputString);
     localStorage.setItem('advancedToggle', document.getElementById('advancedToggle').checked);
-
-    // Save UserAgent data to localStorage
     localStorage.setItem('userAgent', document.getElementById('customUA').value);
-    
-    // Save configEditor and configType to localStorage
     localStorage.setItem('configEditor', document.getElementById('configEditor').value);
     localStorage.setItem('configType', document.getElementById('configType').value);
-    
+
     let selectedRules;
     const predefinedRules = document.getElementById('predefinedRules').value;
     if (predefinedRules !== 'custom') {
@@ -675,10 +1213,8 @@ const submitFormFunction = () => `
       selectedRules = Array.from(document.querySelectorAll('input[name="selectedRules"]:checked'))
         .map(checkbox => checkbox.value);
     }
-    
-    const configEditor = document.getElementById('configEditor');
-    const configId = new URLSearchParams(window.location.search).get('configId') || '';
 
+    const configId = new URLSearchParams(window.location.search).get('configId') || '';
     const customRules = parseCustomRules();
 
     const configParam = configId ? \`&configId=\${configId}\` : '';
@@ -686,14 +1222,27 @@ const submitFormFunction = () => `
     const singboxUrl = \`\${window.location.origin}/singbox?config=\${encodeURIComponent(inputString)}&ua=\${encodeURIComponent(userAgent)}&selectedRules=\${encodeURIComponent(JSON.stringify(selectedRules))}&customRules=\${encodeURIComponent(JSON.stringify(customRules))}\${configParam}\`;
     const clashUrl = \`\${window.location.origin}/clash?config=\${encodeURIComponent(inputString)}&ua=\${encodeURIComponent(userAgent)}&selectedRules=\${encodeURIComponent(JSON.stringify(selectedRules))}&customRules=\${encodeURIComponent(JSON.stringify(customRules))}\${configParam}\`;
     const surgeUrl = \`\${window.location.origin}/surge?config=\${encodeURIComponent(inputString)}&ua=\${encodeURIComponent(userAgent)}&selectedRules=\${encodeURIComponent(JSON.stringify(selectedRules))}&customRules=\${encodeURIComponent(JSON.stringify(customRules))}\${configParam}\`;
+
     document.getElementById('xrayLink').value = xrayUrl;
     document.getElementById('singboxLink').value = singboxUrl;
     document.getElementById('clashLink').value = clashUrl;
     document.getElementById('surgeLink').value = surgeUrl;
+
+    // 显示自动更新部分
+    showAutoUpdateSection();
+
+    // 延迟检查自动更新状态（确保链接已经更新）
+    setTimeout(() => {
+      checkCurrentLinkForAutoUpdate();
+    }, 100);
+
     // Show the subscribe part
     const subscribeLinksContainer = document.getElementById('subscribeLinksContainer');
     subscribeLinksContainer.classList.remove('hide');
     subscribeLinksContainer.classList.add('show');
+
+    // 保存订阅链接容器显示状态
+    localStorage.setItem('subscribeLinksVisible', 'true');
 
     // Scroll to the subscribe part
     subscribeLinksContainer.scrollIntoView({ behavior: 'smooth' });
@@ -703,7 +1252,7 @@ const submitFormFunction = () => `
     try {
       const urlObj = new URL(url);
       const params = new URLSearchParams(urlObj.search);
-      
+
       // Parse base configuration
       const config = params.get('config');
       if (config) {
@@ -756,7 +1305,7 @@ const submitFormFunction = () => `
           if (Array.isArray(rules) && rules.length > 0) {
             // Clear existing custom rules
             document.querySelectorAll('.custom-rule').forEach(rule => rule.remove());
-            
+
             // Switch to JSON view and write rules
             switchCustomRulesTab('json');
             const jsonTextarea = document.querySelector('#customRulesJSON textarea');
@@ -808,17 +1357,17 @@ const submitFormFunction = () => `
   async function autoResolveShortUrl(shortUrl) {
     try {
       const response = await fetch(\`/resolve?url=\${encodeURIComponent(shortUrl)}\`);
-      
+
       if (response.ok) {
         const data = await response.json();
         const originalUrl = data.originalUrl;
-        
+
         // 用原始URL替换输入框中的短链
         document.getElementById('inputTextarea').value = originalUrl;
-        
+
         // 解析原始URL到表单
         parseUrlAndFillForm(originalUrl);
-        
+
         return true;
       } else {
         console.error('Failed to resolve short URL:', await response.text());
@@ -834,24 +1383,24 @@ const submitFormFunction = () => `
   document.addEventListener('DOMContentLoaded', function() {
     const inputTextarea = document.getElementById('inputTextarea');
     let lastValue = '';
-    
+
     inputTextarea.addEventListener('input', async function() {
       const currentValue = this.value.trim();
-      
+
       if (currentValue && currentValue !== lastValue) {
         // 首先检查是否是短链
         if (isShortUrl(currentValue)) {
           await autoResolveShortUrl(currentValue);
         }
         // 然后检查是否是项目生成的完整链接
-        else if (currentValue.includes('/singbox?') || 
-                 currentValue.includes('/clash?') || 
-                 currentValue.includes('/surge?') || 
+        else if (currentValue.includes('/singbox?') ||
+                 currentValue.includes('/clash?') ||
+                 currentValue.includes('/surge?') ||
                  currentValue.includes('/xray?')) {
           parseUrlAndFillForm(currentValue);
         }
       }
-      
+
       lastValue = currentValue;
     });
   });
@@ -869,27 +1418,35 @@ const submitFormFunction = () => `
         document.getElementById('advancedOptions').classList.add('show');
       }
     }
-    
+
     // Load userAgent
     const savedUA = localStorage.getItem('userAgent');
     if (savedUA) {
       document.getElementById('customUA').value = savedUA;
     }
-    
+
     // Load configEditor and configType
     const savedConfig = localStorage.getItem('configEditor');
     const savedConfigType = localStorage.getItem('configType');
-    
+
     if (savedConfig) {
       document.getElementById('configEditor').value = savedConfig;
     }
     if (savedConfigType) {
       document.getElementById('configType').value = savedConfigType;
     }
-    
+
     const savedCustomPath = localStorage.getItem('customPath');
     if (savedCustomPath) {
       document.getElementById('customShortCode').value = savedCustomPath;
+    }
+
+    // 恢复订阅链接容器显示状态
+    const subscribeLinksVisible = localStorage.getItem('subscribeLinksVisible') === 'true';
+    const subscribeLinksContainer = document.getElementById('subscribeLinksContainer');
+    if (subscribeLinksVisible && subscribeLinksContainer) {
+      subscribeLinksContainer.classList.remove('hide');
+      subscribeLinksContainer.classList.add('show');
     }
 
     loadSelectedRules();
@@ -918,39 +1475,6 @@ const submitFormFunction = () => `
     if (savedPredefinedRules) {
       document.getElementById('predefinedRules').value = savedPredefinedRules;
     }
-  }
-
-  function clearFormData() {
-    localStorage.removeItem('inputTextarea');
-    localStorage.removeItem('advancedToggle');
-    localStorage.removeItem('selectedRules');
-    localStorage.removeItem('predefinedRules');
-    localStorage.removeItem('configEditor'); 
-    localStorage.removeItem('configType');
-    localStorage.removeItem('userAgent');
-    
-    document.getElementById('inputTextarea').value = '';
-    document.getElementById('advancedToggle').checked = false;
-    document.getElementById('advancedOptions').classList.remove('show');
-    document.getElementById('configEditor').value = '';
-    document.getElementById('configType').value = 'singbox'; 
-    document.getElementById('customUA').value = '';
-    
-    localStorage.removeItem('customPath');
-    document.getElementById('customShortCode').value = '';
-
-    const subscribeLinksContainer = document.getElementById('subscribeLinksContainer');
-    subscribeLinksContainer.classList.remove('show');
-    subscribeLinksContainer.classList.add('hide');
-
-    document.getElementById('xrayLink').value = '';
-    document.getElementById('singboxLink').value = '';
-    document.getElementById('clashLink').value = '';
-
-    // wait to reset the container
-    setTimeout(() => {
-      subscribeLinksContainer.classList.remove('hide');
-    }, 500);
   }
 
   document.addEventListener('DOMContentLoaded', function() {
@@ -1075,7 +1599,7 @@ const customRuleFunctions = () => `
     if (confirm('${t('confirmClearAllRules')}')) {
       document.querySelectorAll('.custom-rule').forEach(rule => rule.remove());
       document.querySelectorAll('.custom-rule-json').forEach(rule => rule.remove());
-      customRuleCount = 0; 
+      customRuleCount = 0;
       updateEmptyMessages();
     }
   }
@@ -1367,7 +1891,7 @@ const generateQRCodeFunction = () => `
       const margin = Math.floor(cellSize * 0.5);
 
       const qrImage = qr.createDataURL(cellSize, margin);
-      
+
       const modal = document.createElement('div');
       modal.className = 'qr-modal';
       modal.innerHTML = \`
@@ -1419,7 +1943,7 @@ const saveConfig = () => `
 
     localStorage.setItem('configEditor', config);
     localStorage.setItem('configType', configType);
-    
+
     fetch('/config?type=' + configType, {
       method: 'POST',
       headers: {
