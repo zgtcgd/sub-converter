@@ -329,6 +329,185 @@ const generateShortenButton = () => `
 
 const generateScripts = () => `
   <script>
+    // 修改后的 manualUpdate 函数 - 从后台任务列表中选择更新
+    async function manualUpdate() {
+      const manualUpdateBtn = document.getElementById('manualUpdateBtn');
+
+      try {
+        const originalText = manualUpdateBtn.innerHTML;
+        const lang = document.getElementById('langSelect').value;
+
+        const updatingText = {
+          'zh-CN': '<i class="fas fa-spinner fa-spin me-2"></i>更新中...',
+          'en': '<i class="fas fa-spinner fa-spin me-2"></i>Updating...'
+        };
+
+        manualUpdateBtn.disabled = true;
+        manualUpdateBtn.innerHTML = updatingText[lang] || '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
+
+        // 获取所有后台运行中的自动更新任务
+        const tasks = await getAllAutoUpdateTasks();
+
+        if (Object.keys(tasks).length === 0) {
+          const errorText = {
+            'zh-CN': '没有找到正在运行的自动更新任务',
+            'en': 'No running auto-update tasks found'
+          };
+          throw new Error(errorText[lang] || errorText['en']);
+        }
+
+        // 如果有多个任务，让用户选择要更新哪个
+        let shortCodeToUpdate = null;
+
+        if (Object.keys(tasks).length === 1) {
+          // 如果只有一个任务，直接使用它
+          shortCodeToUpdate = Object.keys(tasks)[0];
+        } else {
+          // 如果有多个任务，弹出选择框让用户选择
+          shortCodeToUpdate = await selectTaskToUpdate(tasks, lang);
+          if (!shortCodeToUpdate) {
+            // 用户取消了选择
+            const cancelText = {
+              'zh-CN': '已取消手动更新',
+              'en': 'Manual update cancelled'
+            };
+            throw new Error(cancelText[lang] || cancelText['en']);
+          }
+        }
+
+        console.log('手动更新选择的 shortCode:', shortCodeToUpdate);
+
+        // 调用后端手动更新接口
+        const response = await fetch('/manual-update', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ shortCode: shortCodeToUpdate })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // 使用字符串拼接代替模板字符串
+          const successText = {
+            'zh-CN': '手动更新成功！任务 ' + shortCodeToUpdate + ' 的订阅内容已刷新。',
+            'en': 'Manual update successful! Subscription content for task ' + shortCodeToUpdate + ' has been refreshed.'
+          };
+          alert(successText[lang] || successText['en']);
+
+          // 更新最后更新时间显示
+          const lastUpdateText = {
+            'zh-CN': '最后更新: ',
+            'en': 'Last update: '
+          };
+          document.getElementById('lastUpdateTime').textContent = (lastUpdateText[lang] || 'Last update: ') +
+          (result.lastUpdate || new Date().toLocaleString());
+
+          console.log('手动更新成功:', result);
+
+          // 刷新任务列表显示
+          await displayAutoUpdateTasks();
+        } else {
+          const errorText = {
+            'zh-CN': '手动更新失败: ',
+            'en': 'Manual update failed: '
+          };
+          throw new Error((errorText[lang] || 'Manual update failed: ') + result.error);
+        }
+      } catch (error) {
+        console.error('Error during manual update:', error);
+        // 如果是用户取消，不显示错误提示
+        if (error.message.includes('取消') || error.message.includes('cancelled')) {
+          return;
+        }
+        const errorText = {
+          'zh-CN': '手动更新时发生错误: ',
+          'en': 'Error during manual update: '
+        };
+        alert((errorText[lang] || 'Error during manual update: ') + error.message);
+      } finally {
+        const lang = document.getElementById('langSelect').value;
+        const manualUpdateText = {
+          'zh-CN': '<i class="fas fa-sync me-2"></i>手动更新',
+          'en': '<i class="fas fa-sync me-2"></i>Manual Update'
+        };
+        manualUpdateBtn.disabled = false;
+        manualUpdateBtn.innerHTML = manualUpdateText[lang] || '<i class="fas fa-sync me-2"></i>Manual Update';
+      }
+    }
+
+    // 辅助函数：让用户选择要更新的任务
+    async function selectTaskToUpdate(tasks, lang) {
+      return new Promise((resolve) => {
+        // 创建选择模态框
+        const modal = document.createElement('div');
+        modal.className = 'modal fade show d-block';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+
+        const taskList = Object.entries(tasks).map(([shortCode, task]) =>
+          '<option value="' + shortCode + '">' + shortCode + ' - ' + task.originalUrl + '</option>'
+        ).join('');
+
+        const modalText = {
+          'zh-CN': {
+            title: '选择要手动更新的任务',
+            confirm: '确认更新',
+            cancel: '取消'
+          },
+          'en': {
+            title: 'Select task to update manually',
+            confirm: 'Confirm Update',
+            cancel: 'Cancel'
+          }
+        };
+
+        const texts = modalText[lang] || modalText['en'];
+
+        // 修复模板字符串格式 - 使用正确的缩进
+        modal.innerHTML = [
+          '<div class="modal-dialog">',
+          '  <div class="modal-content">',
+          '    <div class="modal-header">',
+          '      <h5 class="modal-title">' + texts.title + '</h5>',
+          '    </div>',
+          '    <div class="modal-body">',
+          '      <select class="form-select" id="taskSelect">',
+          taskList,
+          '      </select>',
+          '    </div>',
+          '    <div class="modal-footer">',
+          '      <button type="button" class="btn btn-secondary" id="cancelBtn">' + texts.cancel + '</button>',
+          '      <button type="button" class="btn btn-primary" id="confirmBtn">' + texts.confirm + '</button>',
+          '    </div>',
+          '  </div>',
+          '</div>'
+        ].join('');
+
+        document.body.appendChild(modal);
+
+        // 事件处理
+        document.getElementById('confirmBtn').addEventListener('click', () => {
+          const selectedValue = document.getElementById('taskSelect').value;
+          document.body.removeChild(modal);
+          resolve(selectedValue);
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+          document.body.removeChild(modal);
+          resolve(null);
+        });
+
+        // 点击背景关闭
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            document.body.removeChild(modal);
+            resolve(null);
+          }
+        });
+      });
+    }
+
     ${copyToClipboardFunction()}
     ${shortenAllUrlsFunction()}
     ${darkModeToggleFunction()}
@@ -412,6 +591,12 @@ const generateScripts = () => `
 
       // 监听语言切换
       document.getElementById('langSelect').addEventListener('change', updateAutoUpdateTexts);
+
+      // 手动更新按钮事件监听
+      const manualUpdateBtn = document.getElementById('manualUpdateBtn');
+      if (manualUpdateBtn) {
+        manualUpdateBtn.addEventListener('click', manualUpdate);
+      }
     });
   </script>
 `;
@@ -419,136 +604,6 @@ const generateScripts = () => `
 // 新增自动更新功能函数
 const autoUpdateFunctions = () => `
   let currentShortCode = null;
-
-  // 新增：手动更新函数 - 立即执行订阅更新
-  async function manualUpdate() {
-    const singboxLink = document.getElementById('singboxLink');
-    if (!singboxLink || !singboxLink.value.includes('/b/')) {
-      // 使用多语言提示
-      const alertText = {
-        'zh-CN': '请先生成短链接',
-        'en': 'Please generate short link first'
-      };
-      const lang = document.getElementById('langSelect').value;
-      alert(alertText[lang] || 'Please generate short link first');
-      return;
-    }
-
-    const match = singboxLink.value.match(/\\/b\\/([^\\/]+)/);
-    if (!match) {
-      // 使用多语言提示
-      const alertText = {
-        'zh-CN': '无效的短链接',
-        'en': 'Invalid short link'
-      };
-      const lang = document.getElementById('langSelect').value;
-      alert(alertText[lang] || 'Invalid short link');
-      return;
-    }
-
-    const shortCode = match[1];
-    const manualUpdateBtn = document.getElementById('manualUpdateBtn');
-
-    try {
-      // 保存按钮原始状态（多语言）
-      const originalText = manualUpdateBtn.innerHTML;
-      const lang = document.getElementById('langSelect').value;
-
-      const updatingText = {
-        'zh-CN': '<i class="fas fa-spinner fa-spin me-2"></i>更新中...',
-        'en': '<i class="fas fa-spinner fa-spin me-2"></i>Updating...'
-      };
-
-      manualUpdateBtn.disabled = true;
-      manualUpdateBtn.innerHTML = updatingText[lang] || '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
-
-      // 获取当前的表单数据
-      const inputTextarea = document.getElementById('inputTextarea');
-      const originalUrl = inputTextarea ? inputTextarea.value.trim() : '';
-      const userAgent = document.getElementById('customUA').value || 'curl/7.74.0';
-
-      let selectedRules;
-      const predefinedRules = document.getElementById('predefinedRules').value;
-      if (predefinedRules !== 'custom') {
-        selectedRules = predefinedRules;
-      } else {
-        selectedRules = Array.from(document.querySelectorAll('input[name="selectedRules"]:checked'))
-        .map(checkbox => checkbox.value);
-      }
-
-      const customRules = parseCustomRules();
-      const configId = new URLSearchParams(window.location.search).get('configId') || '';
-
-      // 构建更新请求，使用与自动更新相同的逻辑
-      const updateData = {
-        shortCode: shortCode,
-        originalUrl: originalUrl,
-        selectedRules: selectedRules,
-        customRules: customRules,
-        userAgent: userAgent,
-        configId: configId
-      };
-
-      // 发送手动更新请求
-      const response = await fetch('/manual-update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData)
-      });
-
-      if (!response.ok) {
-        throw new Error('HTTP error! status: ' + response.status);
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        // 使用多语言成功提示
-        const successText = {
-          'zh-CN': '手动更新成功！订阅内容已刷新。',
-          'en': 'Manual update successful! Subscription content refreshed.'
-        };
-        alert(successText[lang] || 'Manual update successful! Subscription content refreshed.');
-
-        // 更新显示时间（多语言）
-        const now = new Date();
-        const lastUpdateText = {
-          'zh-CN': '最后更新: ',
-          'en': 'Last update: '
-        };
-        document.getElementById('lastUpdateTime').textContent = (lastUpdateText[lang] || 'Last update: ') + now.toLocaleString();
-
-        console.log('手动更新成功:', result);
-      } else {
-        // 使用多语言错误提示
-        const errorText = {
-          'zh-CN': '手动更新失败: ',
-          'en': 'Manual update failed: '
-        };
-        alert((errorText[lang] || 'Manual update failed: ') + result.error);
-      }
-    } catch (error) {
-      console.error('Error during manual update:', error);
-      // 使用多语言错误提示
-      const errorText = {
-        'zh-CN': '手动更新时发生错误: ',
-        'en': 'Error during manual update: '
-      };
-      const lang = document.getElementById('langSelect').value;
-      alert((errorText[lang] || 'Error during manual update: ') + error.message);
-    } finally {
-      // 恢复按钮状态（使用多语言）
-      const lang = document.getElementById('langSelect').value;
-      const manualUpdateText = {
-        'zh-CN': '<i class="fas fa-sync me-2"></i>手动更新',
-        'en': '<i class="fas fa-sync me-2"></i>Manual Update'
-      };
-      manualUpdateBtn.disabled = false;
-      manualUpdateBtn.innerHTML = manualUpdateText[lang] || '<i class="fas fa-sync me-2"></i>Manual Update';
-    }
-  }
 
   // 新增：获取所有自动更新任务
   async function getAllAutoUpdateTasks() {
