@@ -201,31 +201,63 @@ app.post('/auto-update/stop', async (req, res) => {
     }
 });
 
-// 手动更新路由
+// 手动更新路由 - 修改为基于存储的任务信息
 app.post('/manual-update', async (req, res) => {
-    const { shortCode, originalUrl, selectedRules, customRules, userAgent, configId } = req.body;
-
-    if (!shortCode || !originalUrl) {
+    const { shortCode } = req.body;
+    if (!shortCode) {
         return res.status(400).json({
             success: false,
-            error: '缺少必需参数 (shortCode, originalUrl)'
+            error: '缺少必需参数 shortCode'
         });
     }
 
     try {
-        // 检查对应的自动更新任务是否存在（可选，用于提供更好的错误信息）
-        const hasAutoUpdateTask = autoUpdateTasks.has(shortCode);
+        // 从存储的自动更新任务中获取任务信息
+        let taskInfo;
 
-        // 直接调用与自动更新相同的更新逻辑
-        const result = await performBackendUpdate(shortCode, originalUrl, selectedRules, customRules, userAgent, configId, req);
+        // 首先从内存中查找
+        if (autoUpdateTasks.has(shortCode)) {
+            taskInfo = autoUpdateTasks.get(shortCode);
+        } else {
+            // 如果内存中没有，从数据库查找
+            const savedTasks = await getAllAutoUpdateTasks();
+            const savedTask = savedTasks.find(task => task.shortCode === shortCode);
+            if (savedTask) {
+                taskInfo = savedTask;
+                // 将任务重新加载到内存中（但不启动定时器）
+                autoUpdateTasks.set(shortCode, {
+                    ...savedTask,
+                    intervalId: null // 不设置定时器，只是存储信息
+                });
+            }
+        }
+
+        if (!taskInfo) {
+            return res.status(404).json({
+                success: false,
+                error: '未找到对应的自动更新任务，请先创建自动更新任务'
+            });
+        }
+
+        // 使用存储的任务信息执行更新
+        const result = await performBackendUpdate(
+            shortCode,
+            taskInfo.originalUrl,
+            taskInfo.selectedRules,
+            taskInfo.customRules,
+            taskInfo.userAgent,
+            taskInfo.configId,
+            req,
+            true // 标记为手动更新
+        );
 
         res.json({
             success: true,
             message: '手动更新成功',
             lastUpdate: toChinaTime(new Date()),
-                 hasAutoUpdateTask: hasAutoUpdateTask // 可选信息，告知用户是否有对应的自动更新任务
+                 shortCode: shortCode,
+                 hasAutoUpdateTask: true
         });
-
     } catch (error) {
         console.error('手动更新失败:', error);
         res.status(500).json({
@@ -343,7 +375,7 @@ app.get('/auto-update/tasks', (req, res) => {
 });
 
 // 执行更新的核心函数
-async function performBackendUpdate(shortCode, originalUrl, selectedRules, customRules, userAgent, configId, req) {
+async function performBackendUpdate(shortCode, originalUrl, selectedRules, customRules, userAgent, configId, req, isManualUpdate = false) {
     try {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const configParam = configId ? `&configId=${configId}` : '';
@@ -356,8 +388,8 @@ async function performBackendUpdate(shortCode, originalUrl, selectedRules, custo
 
         console.log(`已更新 ${shortCode} 任务`);
 
-        // 更新任务的上次更新时间
-        if (autoUpdateTasks.has(shortCode)) {
+        // 只有在自动更新时才更新任务的上次更新时间
+        if (!isManualUpdate && autoUpdateTasks.has(shortCode)) {
             autoUpdateTasks.get(shortCode).lastUpdate = new Date();
         }
 
