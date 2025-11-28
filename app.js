@@ -201,6 +201,40 @@ app.post('/auto-update/stop', async (req, res) => {
     }
 });
 
+// 手动更新路由
+app.post('/manual-update', async (req, res) => {
+    const { shortCode, originalUrl, selectedRules, customRules, userAgent, configId } = req.body;
+
+    if (!shortCode || !originalUrl) {
+        return res.status(400).json({
+            success: false,
+            error: '缺少必需参数 (shortCode, originalUrl)'
+        });
+    }
+
+    try {
+        // 检查对应的自动更新任务是否存在（可选，用于提供更好的错误信息）
+        const hasAutoUpdateTask = autoUpdateTasks.has(shortCode);
+
+        // 直接调用与自动更新相同的更新逻辑
+        const result = await performBackendUpdate(shortCode, originalUrl, selectedRules, customRules, userAgent, configId, req);
+
+        res.json({
+            success: true,
+            message: '手动更新成功',
+            lastUpdate: toChinaTime(new Date()),
+                 hasAutoUpdateTask: hasAutoUpdateTask // 可选信息，告知用户是否有对应的自动更新任务
+        });
+
+    } catch (error) {
+        console.error('手动更新失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '手动更新失败: ' + error.message
+        });
+    }
+});
+
 // 保留原有的路径参数版本，确保兼容性
 app.post('/auto-update/stop/:shortCode', async (req, res) => {
     const { shortCode } = req.params;
