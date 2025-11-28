@@ -179,6 +179,10 @@ const generateAutoUpdateSection = () => `
       <button type="button" class="btn btn-warning" id="stopAutoUpdateBtn" style="display: none;">
         <i class="fas fa-stop me-2"></i>${t('stopAutoUpdate') || '停止自动更新'}
       </button>
+      <!-- 新增手动更新按钮 -->
+      <button type="button" class="btn btn-info" id="manualUpdateBtn">
+      <i class="fas fa-sync me-2"></i>${t('manualUpdate') || '手动更新'}
+      </button>
     </div>
     <div class="update-status">
       <span id="updateStatus" class="update-stopped">${t('autoUpdateStopped') || '自动更新已停止'}</span>
@@ -354,6 +358,60 @@ const generateScripts = () => `
       }
       updateApiDocLink();
       document.getElementById('langSelect').addEventListener('change', updateApiDocLink);
+
+      // 新增：自动更新多语言文本更新函数
+      function updateAutoUpdateTexts() {
+        const lang = document.getElementById('langSelect').value;
+
+        // 更新手动更新按钮
+        const manualUpdateBtn = document.getElementById('manualUpdateBtn');
+        if (manualUpdateBtn) {
+          const manualUpdateText = {
+            'zh-CN': '手动更新',
+            'en': 'Manual Update'
+          };
+          manualUpdateBtn.innerHTML = '<i class="fas fa-sync me-2"></i>' + (manualUpdateText[lang] || 'Manual Update');
+        }
+
+        // 更新停止所有任务按钮
+        const stopAllBtn = document.getElementById('stopAllTasksBtn');
+        if (stopAllBtn) {
+          const stopAllText = {
+            'zh-CN': '停止所有任务',
+            'en': 'Stop All Tasks'
+          };
+          stopAllBtn.innerHTML = '<i class="fas fa-stop-circle me-2"></i>' + (stopAllText[lang] || 'Stop All Tasks');
+        }
+
+        // 更新后台任务标题
+        const tasksTitle = document.querySelector('#autoUpdateTasksManager h6');
+        if (tasksTitle) {
+          const tasksTitleText = {
+            'zh-CN': '后台运行中的自动更新任务',
+            'en': 'Background Auto-update Tasks'
+          };
+          tasksTitle.innerHTML = '<i class="fas fa-tasks me-2"></i>' + (tasksTitleText[lang] || 'Background Auto-update Tasks');
+        }
+
+        // 更新状态文本（如果正在运行）
+        const updateStatus = document.getElementById('updateStatus');
+        if (updateStatus && updateStatus.classList.contains('update-active')) {
+          const runningText = {
+            'zh-CN': '自动更新运行中（后端服务）',
+            'en': 'Auto-update running (backend service)'
+          };
+          updateStatus.textContent = runningText[lang] || 'Auto-update running (backend service)';
+        }
+
+        // 更新自动更新任务列表
+        displayAutoUpdateTasks();
+      }
+
+      // 初始更新
+      updateAutoUpdateTexts();
+
+      // 监听语言切换
+      document.getElementById('langSelect').addEventListener('change', updateAutoUpdateTexts);
     });
   </script>
 `;
@@ -361,6 +419,136 @@ const generateScripts = () => `
 // 新增自动更新功能函数
 const autoUpdateFunctions = () => `
   let currentShortCode = null;
+
+  // 新增：手动更新函数 - 立即执行订阅更新
+  async function manualUpdate() {
+    const singboxLink = document.getElementById('singboxLink');
+    if (!singboxLink || !singboxLink.value.includes('/b/')) {
+      // 使用多语言提示
+      const alertText = {
+        'zh-CN': '请先生成短链接',
+        'en': 'Please generate short link first'
+      };
+      const lang = document.getElementById('langSelect').value;
+      alert(alertText[lang] || 'Please generate short link first');
+      return;
+    }
+
+    const match = singboxLink.value.match(/\\/b\\/([^\\/]+)/);
+    if (!match) {
+      // 使用多语言提示
+      const alertText = {
+        'zh-CN': '无效的短链接',
+        'en': 'Invalid short link'
+      };
+      const lang = document.getElementById('langSelect').value;
+      alert(alertText[lang] || 'Invalid short link');
+      return;
+    }
+
+    const shortCode = match[1];
+    const manualUpdateBtn = document.getElementById('manualUpdateBtn');
+
+    try {
+      // 保存按钮原始状态（多语言）
+      const originalText = manualUpdateBtn.innerHTML;
+      const lang = document.getElementById('langSelect').value;
+
+      const updatingText = {
+        'zh-CN': '<i class="fas fa-spinner fa-spin me-2"></i>更新中...',
+        'en': '<i class="fas fa-spinner fa-spin me-2"></i>Updating...'
+      };
+
+      manualUpdateBtn.disabled = true;
+      manualUpdateBtn.innerHTML = updatingText[lang] || '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
+
+      // 获取当前的表单数据
+      const inputTextarea = document.getElementById('inputTextarea');
+      const originalUrl = inputTextarea ? inputTextarea.value.trim() : '';
+      const userAgent = document.getElementById('customUA').value || 'curl/7.74.0';
+
+      let selectedRules;
+      const predefinedRules = document.getElementById('predefinedRules').value;
+      if (predefinedRules !== 'custom') {
+        selectedRules = predefinedRules;
+      } else {
+        selectedRules = Array.from(document.querySelectorAll('input[name="selectedRules"]:checked'))
+        .map(checkbox => checkbox.value);
+      }
+
+      const customRules = parseCustomRules();
+      const configId = new URLSearchParams(window.location.search).get('configId') || '';
+
+      // 构建更新请求，使用与自动更新相同的逻辑
+      const updateData = {
+        shortCode: shortCode,
+        originalUrl: originalUrl,
+        selectedRules: selectedRules,
+        customRules: customRules,
+        userAgent: userAgent,
+        configId: configId
+      };
+
+      // 发送手动更新请求
+      const response = await fetch('/manual-update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        throw new Error('HTTP error! status: ' + response.status);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        // 使用多语言成功提示
+        const successText = {
+          'zh-CN': '手动更新成功！订阅内容已刷新。',
+          'en': 'Manual update successful! Subscription content refreshed.'
+        };
+        alert(successText[lang] || 'Manual update successful! Subscription content refreshed.');
+
+        // 更新显示时间（多语言）
+        const now = new Date();
+        const lastUpdateText = {
+          'zh-CN': '最后更新: ',
+          'en': 'Last update: '
+        };
+        document.getElementById('lastUpdateTime').textContent = (lastUpdateText[lang] || 'Last update: ') + now.toLocaleString();
+
+        console.log('手动更新成功:', result);
+      } else {
+        // 使用多语言错误提示
+        const errorText = {
+          'zh-CN': '手动更新失败: ',
+          'en': 'Manual update failed: '
+        };
+        alert((errorText[lang] || 'Manual update failed: ') + result.error);
+      }
+    } catch (error) {
+      console.error('Error during manual update:', error);
+      // 使用多语言错误提示
+      const errorText = {
+        'zh-CN': '手动更新时发生错误: ',
+        'en': 'Error during manual update: '
+      };
+      const lang = document.getElementById('langSelect').value;
+      alert((errorText[lang] || 'Error during manual update: ') + error.message);
+    } finally {
+      // 恢复按钮状态（使用多语言）
+      const lang = document.getElementById('langSelect').value;
+      const manualUpdateText = {
+        'zh-CN': '<i class="fas fa-sync me-2"></i>手动更新',
+        'en': '<i class="fas fa-sync me-2"></i>Manual Update'
+      };
+      manualUpdateBtn.disabled = false;
+      manualUpdateBtn.innerHTML = manualUpdateText[lang] || '<i class="fas fa-sync me-2"></i>Manual Update';
+    }
+  }
 
   // 新增：获取所有自动更新任务
   async function getAllAutoUpdateTasks() {
@@ -392,6 +580,23 @@ const autoUpdateFunctions = () => `
 
     manager.style.display = 'block';
 
+    // 获取当前语言
+    const lang = document.getElementById('langSelect').value;
+
+    // 多语言文本
+    const textMap = {
+      'zh-CN': {
+        lastUpdate: '最后更新',
+        nextUpdate: '下次更新'
+      },
+      'en': {
+        lastUpdate: 'Last update',
+        nextUpdate: 'Next update'
+      }
+    };
+
+    const texts = textMap[lang] || textMap['en'];
+
     let html = '<div class="task-list">';
     for (const [shortCode, task] of Object.entries(tasks)) {
       html += \`
@@ -401,7 +606,7 @@ const autoUpdateFunctions = () => `
               <strong>\${shortCode}</strong>
               <div class="text-muted small">\${task.originalUrl}</div>
               <div class="text-muted small">
-                最后更新: \${task.lastUpdate} | 下次更新: \${task.nextUpdate}
+              \${texts.lastUpdate}: \${task.lastUpdate} | \${texts.nextUpdate}: \${task.nextUpdate}
               </div>
             </div>
             <button type="button" class="btn btn-outline-danger btn-sm" onclick="stopSpecificTask('\${shortCode}')">
@@ -426,7 +631,14 @@ const autoUpdateFunctions = () => `
         return 0;
       }
 
-      if (!confirm('确定要停止所有 ' + taskCount + ' 个自动更新任务吗？')) {
+      // 多语言确认提示
+      const lang = document.getElementById('langSelect').value;
+      const confirmText = {
+        'zh-CN': '确定要停止所有 ' + taskCount + ' 个自动更新任务吗？',
+        'en': 'Are you sure you want to stop all ' + taskCount + ' auto-update tasks?'
+      };
+
+      if (!confirm(confirmText[lang] || confirmText['en'])) {
         return 0;
       }
 
@@ -446,7 +658,14 @@ const autoUpdateFunctions = () => `
 
       if (result.success) {
         console.log('成功停止所有任务:', result);
-        alert('已停止 ' + result.stoppedCount + ' 个自动更新任务');
+
+        // 多语言成功提示
+        const successText = {
+          'zh-CN': '已停止 ' + result.stoppedCount + ' 个自动更新任务',
+          'en': 'Stopped ' + result.stoppedCount + ' auto-update tasks'
+        };
+        alert(successText[lang] || successText['en']);
+
         await displayAutoUpdateTasks();
         updateUIForAutoUpdate(false);
         currentShortCode = null;
@@ -456,14 +675,28 @@ const autoUpdateFunctions = () => `
       }
     } catch (error) {
       console.error('Error stopping all tasks:', error);
-      alert('停止所有任务时发生错误: ' + error.message);
+
+      // 多语言错误提示
+      const lang = document.getElementById('langSelect').value;
+      const errorText = {
+        'zh-CN': '停止所有任务时发生错误: ',
+        'en': 'Error stopping all tasks: '
+      };
+      alert((errorText[lang] || errorText['en']) + error.message);
       return 0;
     }
   }
 
   // 停止特定任务 - 使用正确的API路径
   async function stopSpecificTask(shortCode) {
-    if (!confirm('确定要停止任务 ' + shortCode + ' 吗？')) {
+    // 多语言确认提示
+    const lang = document.getElementById('langSelect').value;
+    const confirmText = {
+      'zh-CN': '确定要停止任务 ' + shortCode + ' 吗？',
+      'en': 'Are you sure you want to stop task ' + shortCode + '?'
+    };
+
+    if (!confirm(confirmText[lang] || confirmText['en'])) {
       return;
     }
 
@@ -481,7 +714,13 @@ const autoUpdateFunctions = () => `
       const result = await response.json();
 
       if (result.success) {
-        alert('已停止任务: ' + shortCode);
+        // 多语言成功提示
+        const successText = {
+          'zh-CN': '已停止任务: ' + shortCode,
+          'en': 'Stopped task: ' + shortCode
+        };
+        alert(successText[lang] || successText['en']);
+
         await displayAutoUpdateTasks();
 
         // 如果停止的是当前任务，更新UI状态
@@ -490,11 +729,22 @@ const autoUpdateFunctions = () => `
           currentShortCode = null;
         }
       } else {
-        alert('停止任务失败: ' + result.error);
+        // 多语言错误提示
+        const errorText = {
+          'zh-CN': '停止任务失败: ',
+          'en': 'Failed to stop task: '
+        };
+        alert((errorText[lang] || errorText['en']) + result.error);
       }
     } catch (error) {
       console.error('Error stopping task:', error);
-      alert('停止任务时发生错误');
+
+      // 多语言错误提示
+      const errorText = {
+        'zh-CN': '停止任务时发生错误',
+        'en': 'Error stopping task'
+      };
+      alert(errorText[lang] || errorText['en']);
     }
   }
 
@@ -566,13 +816,30 @@ const autoUpdateFunctions = () => `
       subscribeLinksContainer.classList.remove('hide');
     }, 500);
 
-    // 显示清除成功提示
-    let message = '表单已清除';
+    // 显示清除成功提示（多语言支持）
+    const lang = document.getElementById('langSelect').value;
+    const messageText = {
+      'zh-CN': {
+        base: '表单已清除',
+        withTasks: '，并停止了 ' + stoppedCount + ' 个自动更新任务',
+        noTasks: '，没有运行中的自动更新任务'
+      },
+      'en': {
+        base: 'Form cleared',
+        withTasks: ', and stopped ' + stoppedCount + ' auto-update tasks',
+        noTasks: ', no running auto-update tasks'
+      }
+    };
+
+    const texts = messageText[lang] || messageText['en'];
+    let message = texts.base;
+
     if (stoppedCount > 0) {
-      message += '，并停止了 ' + stoppedCount + ' 个自动更新任务';
+      message += texts.withTasks;
     } else {
-      message += '，没有运行中的自动更新任务';
+      message += texts.noTasks;
     }
+
     alert(message);
     console.log('清除表单完成:', message);
   }
@@ -582,6 +849,7 @@ const autoUpdateFunctions = () => `
     const startBtn = document.getElementById('startAutoUpdateBtn');
     const stopBtn = document.getElementById('stopAutoUpdateBtn');
     const stopAllBtn = document.getElementById('stopAllTasksBtn');
+    const manualUpdateBtn = document.getElementById('manualUpdateBtn');
 
     if (startBtn) {
       startBtn.addEventListener('click', startAutoUpdate);
@@ -593,6 +861,10 @@ const autoUpdateFunctions = () => `
 
     if (stopAllBtn) {
       stopAllBtn.addEventListener('click', stopAllAutoUpdateTasks);
+    }
+
+    if (manualUpdateBtn) {
+      manualUpdateBtn.addEventListener('click', manualUpdate);
     }
 
     // 页面加载时恢复自动更新部分显示状态
@@ -668,7 +940,13 @@ const autoUpdateFunctions = () => `
     }
 
     if (!shortCodeToStop) {
-      alert('没有找到要停止的自动更新任务');
+      // 多语言提示
+      const lang = document.getElementById('langSelect').value;
+      const alertText = {
+        'zh-CN': '没有找到要停止的自动更新任务',
+        'en': 'No auto-update task found to stop'
+      };
+      alert(alertText[lang] || alertText['en']);
       return;
     }
 
@@ -682,14 +960,35 @@ const autoUpdateFunctions = () => `
       if (result.success) {
         updateUIForAutoUpdate(false);
         currentShortCode = null;
-        alert('自动更新已停止');
+
+        // 多语言成功提示
+        const lang = document.getElementById('langSelect').value;
+        const successText = {
+          'zh-CN': '自动更新已停止',
+          'en': 'Auto-update stopped'
+        };
+        alert(successText[lang] || successText['en']);
+
         await displayAutoUpdateTasks();
       } else {
-        alert('停止自动更新失败: ' + result.error);
+        // 多语言错误提示
+        const lang = document.getElementById('langSelect').value;
+        const errorText = {
+          'zh-CN': '停止自动更新失败: ',
+          'en': 'Failed to stop auto-update: '
+        };
+        alert((errorText[lang] || errorText['en']) + result.error);
       }
     } catch (error) {
       console.error('Error stopping auto-update:', error);
-      alert('停止自动更新时发生错误');
+
+      // 多语言错误提示
+      const lang = document.getElementById('langSelect').value;
+      const errorText = {
+        'zh-CN': '停止自动更新时发生错误',
+        'en': 'Error stopping auto-update'
+      };
+      alert(errorText[lang] || errorText['en']);
     }
   }
 
@@ -721,7 +1020,9 @@ const autoUpdateFunctions = () => `
     if (startBtn) startBtn.style.display = isActive ? 'none' : 'inline-block';
     if (stopBtn) stopBtn.style.display = isActive ? 'inline-block' : 'none';
     if (status) {
-      status.textContent = isActive ? '自动更新运行中（后端服务）' : '自动更新已停止';
+      status.textContent = isActive ?
+      '${t('autoUpdateRunning')}' || '自动更新运行中（后端服务）' :
+      '${t('autoUpdateStopped')}' || '自动更新已停止';
       status.className = isActive ? 'update-active' : 'update-stopped';
     }
   }
@@ -788,14 +1089,35 @@ const autoUpdateFunctions = () => `
 
       if (result.success) {
         updateUIForAutoUpdate(true);
-        alert('自动更新已启动！即使关闭页面也会继续运行。短代码: ' + currentShortCode);
+
+        // 多语言成功提示
+        const lang = document.getElementById('langSelect').value;
+        const successText = {
+          'zh-CN': '自动更新已启动！即使关闭页面也会继续运行。短代码: ' + currentShortCode,
+          'en': 'Auto-update started! It will continue running even if you close the page. Short code: ' + currentShortCode
+        };
+        alert(successText[lang] || successText['en']);
+
         await displayAutoUpdateTasks();
       } else {
-        alert('启动自动更新失败: ' + result.error);
+        // 多语言失败提示
+        const lang = document.getElementById('langSelect').value;
+        const errorText = {
+          'zh-CN': '启动自动更新失败: ',
+          'en': 'Failed to start auto-update: '
+        };
+        alert((errorText[lang] || errorText['en']) + result.error);
       }
     } catch (error) {
       console.error('Error starting auto-update:', error);
-      alert('启动自动更新时发生错误');
+
+      // 多语言异常提示
+      const lang = document.getElementById('langSelect').value;
+      const errorText = {
+        'zh-CN': '启动自动更新时发生错误',
+        'en': 'Error occurred while starting auto-update'
+      };
+      alert(errorText[lang] || errorText['en']);
     }
   }
 
