@@ -88,11 +88,11 @@ const translations = {
     stopAutoUpdate: '停止自动更新',
     autoUpdateRunning: '自动更新运行中',
     autoUpdateStopped: '自动更新已停止',
-    lastUpdate: '最后更新',
-    pleaseEnterValidInterval: '请输入有效的更新间隔',
-    pleaseGenerateShortLinkFirst: '请先生成短链接',
-    invalidShortLink: '无效的短链接',
     autoUpdateFailed: '自动更新失败',
+    autoUpdateRunning: '自动更新运行中（后端服务）',
+    backgroundTasks: '后台运行中的自动更新任务',
+    manualUpdate: '手动更新',
+    stopAllTasks: '停止所有任务',
 
     // 规则名称和出站名称的翻译
     outboundNames: {
@@ -287,11 +287,12 @@ const translations = {
     stopAutoUpdate: 'Stop Auto Update',
     autoUpdateRunning: 'Auto Update Running',
     autoUpdateStopped: 'Auto Update Stopped',
-    lastUpdate: 'Last Update',
-    pleaseEnterValidInterval: 'Please enter a valid interval',
-    pleaseGenerateShortLinkFirst: 'Please generate short link first',
-    invalidShortLink: 'Invalid short link',
     autoUpdateFailed: 'Auto update failed',
+    autoUpdateRunning: 'Auto-update running (backend service)',
+    backgroundTasks: 'Background Auto-update Tasks',
+    manualUpdate: 'Manual Update',
+    stopAllTasks: 'Stop All Tasks',
+
     outboundNames:{
       'Auto Select': '♻️ Auto Select',
       'Node Select': '🚀 Node Select',
