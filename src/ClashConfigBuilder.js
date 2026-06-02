@@ -122,16 +122,21 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     type: proxy.type,
                     server: proxy.server,
                     port: proxy.server_port,
-                    obfs: proxy.obfs.type,
-                    'obfs-password': proxy.obfs.password,
                     password: proxy.password,
-                    auth: proxy.auth,
-                    up: proxy.up_mbps,
-                    down: proxy.down_mbps,
-                    'recv-window-conn': proxy.recv_window_conn,
-                    sni: proxy.tls?.server_name || '',
-                    'skip-cert-verify': proxy.tls?.insecure || true,
                 };
+
+                if (proxy.obfs?.type) {
+                    hysteria2Config.obfs = proxy.obfs.type;
+                    hysteria2Config['obfs-password'] = proxy.obfs.password;
+                }
+                if (proxy.auth) hysteria2Config.auth = proxy.auth;
+                if (proxy.up_mbps) hysteria2Config.up = proxy.up_mbps;
+                if (proxy.down_mbps) hysteria2Config.down = proxy.down_mbps;
+                if (proxy.recv_window_conn) hysteria2Config['recv-window-conn'] = proxy.recv_window_conn;
+                
+                hysteria2Config.sni = proxy.tls?.server_name || '';
+                hysteria2Config['skip-cert-verify'] = proxy.tls?.insecure ?? true;
+
                 if (proxy.pinSHA256) {
                     hysteria2Config.pinSHA256 = proxy.pinSHA256;
                 }

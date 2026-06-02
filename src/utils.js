@@ -148,9 +148,19 @@ export function parseServerInfo(serverInfo) {
   export function createTlsConfig(params) {
 	let tls = { enabled: false };
 	if (params.security != 'none') {
+	  let sni = params.sni || params.host;
+	  // 如果 SNI 包含了协议头或路径，则提取纯主机名
+	  if (sni && (sni.includes('://') || sni.includes('/'))) {
+		try {
+		  const tempUrl = sni.includes('://') ? sni : 'https://' + sni;
+		  sni = new URL(tempUrl).hostname;
+		} catch (e) {
+		  // 解析失败则保持原样
+		}
+	  }
 	  tls = {
 		enabled: true,
-		server_name: params.sni || params.host,
+		server_name: sni,
 		insecure: !!params?.allowInsecure || !!params?.insecure || !!params?.allow_insecure,
 		// utls: {
 		//   enabled: true,
