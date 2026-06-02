@@ -133,9 +133,8 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                 if (proxy.up_mbps) hysteria2Config.up = proxy.up_mbps;
                 if (proxy.down_mbps) hysteria2Config.down = proxy.down_mbps;
                 if (proxy.recv_window_conn) hysteria2Config['recv-window-conn'] = proxy.recv_window_conn;
-                
-                hysteria2Config.sni = proxy.tls?.server_name || '';
-                hysteria2Config['skip-cert-verify'] = proxy.tls?.insecure ?? true;
+                if (proxy.tls?.server_name) hysteria2Config.sni = proxy.tls.server_name;
+                hysteria2Config['skip-cert-verify'] = !!proxy.tls?.insecure;
 
                 if (proxy.pinSHA256) {
                     hysteria2Config.pinSHA256 = proxy.pinSHA256;
@@ -321,6 +320,6 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
 
         this.config.rules.push(`MATCH,${t('outboundNames.Fall Back')}`);
 
-        return yaml.dump(this.config);
+        return yaml.dump(this.config, { lineWidth: -1 });
     }
 }

@@ -313,6 +313,7 @@ class Hysteria2Parser {
         }
 
         const tls = createTlsConfig(params);
+        const pinSHA256 = params.pinSHA256 || params.pinsha256 || params['pin-sha256'];
 
         const obfs = {};
         if (params['obfs-password']) {
@@ -332,7 +333,7 @@ class Hysteria2Parser {
             recv_window_conn: params.recv_window_conn,
             up_mbps: params?.upmbps ? parseInt(params.upmbps) : undefined,
             down_mbps: params?.downmbps ? parseInt(params.downmbps) : undefined,
-            pinSHA256: params['pin-sha256'] || params.pinsha256 || params.pinSHA256
+            pinSHA256: pinSHA256 || undefined
         };
     }
 }

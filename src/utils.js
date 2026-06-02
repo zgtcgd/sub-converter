@@ -161,7 +161,7 @@ export function parseServerInfo(serverInfo) {
 	  tls = {
 		enabled: true,
 		server_name: sni,
-		insecure: !!params?.allowInsecure || !!params?.insecure || !!params?.allow_insecure,
+		insecure: params?.insecure === '1' || params?.insecure === 'true' || params?.allowInsecure === '1' || params?.allowInsecure === 'true',
 		// utls: {
 		//   enabled: true,
 		//   fingerprint: "chrome"
