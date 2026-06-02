@@ -117,29 +117,21 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     'flow': proxy.flow ?? undefined,
                 };
             case 'hysteria2':
-                const hysteria2Config = {
+                return {
                     name: proxy.tag,
                     type: proxy.type,
                     server: proxy.server,
                     port: proxy.server_port,
+                    obfs: proxy.obfs.type,
+                    'obfs-password': proxy.obfs.password,
                     password: proxy.password,
+                    auth: proxy.auth,
+                    up: proxy.up_mbps,
+                    down: proxy.down_mbps,
+                    'recv-window-conn': proxy.recv_window_conn,
+                    sni: proxy.tls?.server_name || '',
+                    'skip-cert-verify': proxy.tls?.insecure || true,
                 };
-
-                if (proxy.obfs?.type) {
-                    hysteria2Config.obfs = proxy.obfs.type;
-                    hysteria2Config['obfs-password'] = proxy.obfs.password;
-                }
-                if (proxy.auth) hysteria2Config.auth = proxy.auth;
-                if (proxy.up_mbps) hysteria2Config.up = proxy.up_mbps;
-                if (proxy.down_mbps) hysteria2Config.down = proxy.down_mbps;
-                if (proxy.recv_window_conn) hysteria2Config['recv-window-conn'] = proxy.recv_window_conn;
-                if (proxy.tls?.server_name) hysteria2Config.sni = proxy.tls.server_name;
-                hysteria2Config['skip-cert-verify'] = !!proxy.tls?.insecure;
-
-                if (proxy.pinSHA256) {
-                    hysteria2Config.pinSHA256 = proxy.pinSHA256;
-                }
-                return hysteria2Config;
             case 'trojan':
                 return {
                     name: proxy.tag,
@@ -320,6 +312,6 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
 
         this.config.rules.push(`MATCH,${t('outboundNames.Fall Back')}`);
 
-        return yaml.dump(this.config, { lineWidth: -1 });
+        return yaml.dump(this.config);
     }
 }
