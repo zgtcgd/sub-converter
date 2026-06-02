@@ -331,7 +331,8 @@ class Hysteria2Parser {
             auth: params.auth,
             recv_window_conn: params.recv_window_conn,
             up_mbps: params?.upmbps ? parseInt(params.upmbps) : undefined,
-            down_mbps: params?.downmbps ? parseInt(params.downmbps) : undefined
+            down_mbps: params?.downmbps ? parseInt(params.downmbps) : undefined,
+            pinSHA256: params['pin-sha256'] || params.pinsha256
         };
     }
 }

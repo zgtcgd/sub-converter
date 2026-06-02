@@ -51,10 +51,6 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     pluginOpts.tls = proxy.plugin_tls || false; // 默认 false
                     pluginOpts.mux = proxy.plugin_mux || false; // 默认 false
                     pluginOpts.allowInsecure = proxy.plugin_allowInsecure || false; // 默认 false
-                    // 只有当其有值时才赋值
-                    if (proxy.plugin_pinSHA256) {
-                        pluginOpts.pinSHA256 = proxy.plugin_pinSHA256;
-                    }
                     // 你可以根据实际情况添加或修改其他 plugin-opts 字段
                 }
                 const ssconfig = {
@@ -87,6 +83,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     cipher: proxy.security,
                     tls: proxy.tls?.enabled || false,
                     servername: proxy.tls?.server_name || '',
+                    'skip-cert-verify': proxy.tls?.insecure || false,
                     network: proxy.transport?.type || 'tcp',
                     'ws-opts': proxy.transport?.type === 'ws' ? {
                         path: proxy.transport.path,
@@ -102,7 +99,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     uuid: proxy.uuid,
                     cipher: proxy.security,
                     tls: proxy.tls?.enabled || false,
-                    'client-fingerprint': proxy.tls.utls?.fingerprint,
+                    'client-fingerprint': proxy.tls?.utls?.fingerprint,
                     servername: proxy.tls?.server_name || '',
                     network: proxy.transport?.type || 'tcp',
                     'ws-opts': proxy.transport?.type === 'ws' ? {
@@ -117,11 +114,11 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                         'grpc-service-name': proxy.transport.service_name,
                     } : undefined,
                     tfo : proxy.tcp_fast_open,
-                    'skip-cert-verify': proxy.tls.insecure,
+                    'skip-cert-verify': proxy.tls?.insecure || false,
                     'flow': proxy.flow ?? undefined,
                 };
             case 'hysteria2':
-                return {
+                const hysteria2Config = {
                     name: proxy.tag,
                     type: proxy.type,
                     server: proxy.server,
@@ -134,8 +131,12 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     down: proxy.down_mbps,
                     'recv-window-conn': proxy.recv_window_conn,
                     sni: proxy.tls?.server_name || '',
-                    'skip-cert-verify': proxy.tls?.insecure || true,
+                    'skip-cert-verify': proxy.tls?.insecure || false,
                 };
+                if (proxy.pinSHA256) {
+                    hysteria2Config['pin-sha256'] = proxy.pinSHA256;
+                }
+                return hysteria2Config;
             case 'trojan':
                 return {
                     name: proxy.tag,
@@ -145,7 +146,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     password: proxy.password,
                     cipher: proxy.security,
                     tls: proxy.tls?.enabled || false,
-                    'client-fingerprint': proxy.tls.utls?.fingerprint,
+                    'client-fingerprint': proxy.tls?.utls?.fingerprint,
                     sni: proxy.tls?.server_name || '',
                     network: proxy.transport?.type || 'tcp',
                     'ws-opts': proxy.transport?.type === 'ws' ? {
@@ -160,7 +161,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                         'grpc-service-name': proxy.transport.service_name,
                     } : undefined,
                     tfo : proxy.tcp_fast_open,
-                    'skip-cert-verify': proxy.tls.insecure,
+                    'skip-cert-verify': proxy.tls?.insecure || false,
                     'flow': proxy.flow ?? undefined,
                 };
             case 'tuic':
@@ -172,10 +173,10 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     uuid: proxy.uuid,
                     password: proxy.password,
                     'congestion-controller': proxy.congestion,
-                    'skip-cert-verify': proxy.tls.insecure,
+                    'skip-cert-verify': proxy.tls?.insecure || false,
                     'disable-sni': true,
-                    'alpn': proxy.tls.alpn,
-                    'sni': proxy.tls.server_name,
+                    'alpn': proxy.tls?.alpn,
+                    'sni': proxy.tls?.server_name,
                     'udp-relay-mode': 'native',
                 };
             default:
