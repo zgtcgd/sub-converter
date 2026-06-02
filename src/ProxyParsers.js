@@ -314,9 +314,10 @@ class Hysteria2Parser {
 
         const tls = createTlsConfig(params);
 
-        let obfs = undefined;
+        const obfs = {};
         if (params['obfs-password']) {
-            obfs = { type: params.obfs || 'salamander', password: params['obfs-password'] };
+            obfs.type = params.obfs;
+            obfs.password = params['obfs-password'];
         };
 
         return {

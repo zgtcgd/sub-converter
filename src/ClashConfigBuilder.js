@@ -83,7 +83,6 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     cipher: proxy.security,
                     tls: proxy.tls?.enabled || false,
                     servername: proxy.tls?.server_name || '',
-                    'skip-cert-verify': proxy.tls?.insecure || false,
                     network: proxy.transport?.type || 'tcp',
                     'ws-opts': proxy.transport?.type === 'ws' ? {
                         path: proxy.transport.path,
@@ -99,7 +98,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     uuid: proxy.uuid,
                     cipher: proxy.security,
                     tls: proxy.tls?.enabled || false,
-                    'client-fingerprint': proxy.tls?.utls?.fingerprint,
+                    'client-fingerprint': proxy.tls.utls?.fingerprint,
                     servername: proxy.tls?.server_name || '',
                     network: proxy.transport?.type || 'tcp',
                     'ws-opts': proxy.transport?.type === 'ws' ? {
@@ -114,7 +113,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                         'grpc-service-name': proxy.transport.service_name,
                     } : undefined,
                     tfo : proxy.tcp_fast_open,
-                    'skip-cert-verify': proxy.tls?.insecure || false,
+                    'skip-cert-verify': proxy.tls.insecure,
                     'flow': proxy.flow ?? undefined,
                 };
             case 'hysteria2':
@@ -123,18 +122,16 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     type: proxy.type,
                     server: proxy.server,
                     port: proxy.server_port,
+                    obfs: proxy.obfs.type,
+                    'obfs-password': proxy.obfs.password,
                     password: proxy.password,
                     auth: proxy.auth,
                     up: proxy.up_mbps,
                     down: proxy.down_mbps,
                     'recv-window-conn': proxy.recv_window_conn,
                     sni: proxy.tls?.server_name || '',
-                    'skip-cert-verify': proxy.tls?.insecure || false,
+                    'skip-cert-verify': proxy.tls?.insecure || true,
                 };
-                if (proxy.obfs?.type) {
-                    hysteria2Config.obfs = proxy.obfs.type;
-                    hysteria2Config['obfs-password'] = proxy.obfs.password;
-                }
                 if (proxy.pinSHA256) {
                     hysteria2Config.pinSHA256 = proxy.pinSHA256;
                 }
@@ -148,7 +145,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     password: proxy.password,
                     cipher: proxy.security,
                     tls: proxy.tls?.enabled || false,
-                    'client-fingerprint': proxy.tls?.utls?.fingerprint,
+                    'client-fingerprint': proxy.tls.utls?.fingerprint,
                     sni: proxy.tls?.server_name || '',
                     network: proxy.transport?.type || 'tcp',
                     'ws-opts': proxy.transport?.type === 'ws' ? {
@@ -163,7 +160,7 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                         'grpc-service-name': proxy.transport.service_name,
                     } : undefined,
                     tfo : proxy.tcp_fast_open,
-                    'skip-cert-verify': proxy.tls?.insecure || false,
+                    'skip-cert-verify': proxy.tls.insecure,
                     'flow': proxy.flow ?? undefined,
                 };
             case 'tuic':
@@ -175,10 +172,10 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     uuid: proxy.uuid,
                     password: proxy.password,
                     'congestion-controller': proxy.congestion,
-                    'skip-cert-verify': proxy.tls?.insecure || false,
+                    'skip-cert-verify': proxy.tls.insecure,
                     'disable-sni': true,
-                    'alpn': proxy.tls?.alpn,
-                    'sni': proxy.tls?.server_name,
+                    'alpn': proxy.tls.alpn,
+                    'sni': proxy.tls.server_name,
                     'udp-relay-mode': 'native',
                 };
             default:
