@@ -51,6 +51,10 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     pluginOpts.tls = proxy.plugin_tls || false; // 默认 false
                     pluginOpts.mux = proxy.plugin_mux || false; // 默认 false
                     pluginOpts.allowInsecure = proxy.plugin_allowInsecure || false; // 默认 false
+                    // 只有当其有值时才赋值
+                    if (proxy.plugin_pinSHA256) {
+                        pluginOpts.pinSHA256 = proxy.plugin_pinSHA256;
+                    }
                     // 你可以根据实际情况添加或修改其他 plugin-opts 字段
                 }
                 const ssconfig = {
