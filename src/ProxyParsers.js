@@ -331,8 +331,54 @@ class Hysteria2Parser {
             auth: params.auth,
             recv_window_conn: params.recv_window_conn,
             up_mbps: params?.upmbps ? parseInt(params.upmbps) : undefined,
+            down_mbps: params?.downmbps ? parseInt(params.downmbps) : undefined
+            pinSHA256: params['pin-sha256'] || params.pinsha256 || params.pinSHA256
+        };
+    }
+}
+
+class Hysteria2Parser {
+    parse(url) {
+        const { addressPart, params, name } = parseUrlParams(url);
+        // 处理不包含 @ 的 URL 格式
+        let host, port;
+        let password = null;
+
+        if (addressPart.includes('@')) {
+            const [uuid, serverInfo] = addressPart.split('@');
+            const parsed = parseServerInfo(serverInfo);
+            host = parsed.host;
+            port = parsed.port;
+            password = decodeURIComponent(uuid);
+        } else {
+            // 直接解析服务器地址和端口
+            const parsed = parseServerInfo(addressPart);
+            host = parsed.host;
+            port = parsed.port;
+            // 如果 URL 中没有 @，则尝试从 params.auth 获取密码
+            password = params.auth;
+        }
+
+        const tls = createTlsConfig(params);
+
+        let obfs = undefined;
+        if (params['obfs-password']) {
+            obfs = { type: params.obfs || 'salamander', password: params['obfs-password'] };
+        };
+
+        return {
+            tag: name,
+            type: "hysteria2",
+            server: host,
+            server_port: port,
+            password: password,
+            tls: tls,
+            obfs: obfs,
+            auth: params.auth,
+            recv_window_conn: params.recv_window_conn,
+            up_mbps: params?.upmbps ? parseInt(params.upmbps) : undefined,
             down_mbps: params?.downmbps ? parseInt(params.downmbps) : undefined,
-            pinSHA256: params['pin-sha256'] || params.pinsha256
+            pinSHA256: params['pin-sha256'] || params.pinsha256 || params.pinSHA256
         };
     }
 }

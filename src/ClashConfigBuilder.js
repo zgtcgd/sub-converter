@@ -131,10 +131,10 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     down: proxy.down_mbps,
                     'recv-window-conn': proxy.recv_window_conn,
                     sni: proxy.tls?.server_name || '',
-                    'skip-cert-verify': proxy.tls?.insecure || false,
+                    'skip-cert-verify': proxy.tls?.insecure || true,
                 };
                 if (proxy.pinSHA256) {
-                    hysteria2Config['pin-sha256'] = proxy.pinSHA256;
+                    hysteria2Config.pinSHA256 = proxy.pinSHA256;
                 }
                 return hysteria2Config;
             case 'trojan':
