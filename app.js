@@ -4,7 +4,7 @@ import { SingboxConfigBuilder } from './src/SingboxConfigBuilder.js';
 import { generateHtml } from './src/htmlBuilder.js';
 import { ClashConfigBuilder } from './src/ClashConfigBuilder.js';
 import { SurgeConfigBuilder } from './src/SurgeConfigBuilder.js';
-import { GenerateWebPath } from './src/utils.js';
+import { GenerateWebPath, tryDecodeSubscriptionLines, parseBool, parseMaybeNumber, parseArray, createStableProviderName } from './src/utils.js';
 import { PREDEFINED_RULE_SETS } from './src/config.js';
 import { t, setLanguage } from './src/i18n/index.js';
 import yaml from 'js-yaml';
@@ -476,12 +476,14 @@ app.get('/xray', async (req, res) => {
         if (proxy.startsWith('http://') || proxy.startsWith('https://')) {
             try {
                 const response = await fetch(proxy, { headers: { 'User-Agent': userAgent } });
-                let text = await response.text();
-                let decodedText = Buffer.from(text.trim(), 'base64').toString();
-                if (decodedText.includes('%')) {
-                    decodedText = decodeURIComponent(decodedText);
+                const text = await response.text();
+                // 多级解码: 自动识别明文/base64/URL编码, 无需手动判断
+                const decoded = tryDecodeSubscriptionLines(text, { decodeUriComponent: true });
+                if (Array.isArray(decoded)) {
+                    finalProxyList.push(...decoded);
+                } else if (typeof decoded === 'string' && decoded.trim() !== '') {
+                    finalProxyList.push(...decoded.split('\n').filter(l => l.trim() !== ''));
                 }
-                finalProxyList.push(...decodedText.split('\n'));
             } catch (e) {
                 // 忽略错误
             }
@@ -576,12 +578,14 @@ app.get(['/b/:code', '/c/:code', '/x/:code', '/s/:code'], async (req, res) => {
                 if (proxy.startsWith('http://') || proxy.startsWith('https://')) {
                     try {
                         const response = await fetch(proxy, { headers: { 'User-Agent': ua } });
-                        let text = await response.text();
-                        let decodedText = Buffer.from(text.trim(), 'base64').toString();
-                        if (decodedText.includes('%')) {
-                            decodedText = decodeURIComponent(decodedText);
+                        const text = await response.text();
+                        // 多级解码: 自动识别明文/base64/URL编码
+                        const decoded = tryDecodeSubscriptionLines(text, { decodeUriComponent: true });
+                        if (Array.isArray(decoded)) {
+                            finalProxyList.push(...decoded);
+                        } else if (typeof decoded === 'string' && decoded.trim() !== '') {
+                            finalProxyList.push(...decoded.split('\n').filter(l => l.trim() !== ''));
                         }
-                        finalProxyList.push(...decodedText.split('\n'));
                     } catch (e) {
                         finalProxyList.push(proxy);
                     }
