@@ -7,12 +7,12 @@
     "start": "node app.js"
   },
   "dependencies": {
-    "better-sqlite3": "latest",
+    "better-sqlite3": "12.4.6",
     "body-parser": "latest",
     "express": "latest",
     "js-yaml": "^4.3.1"
   },
   "allowScripts": {
-    "better-sqlite3@latest": true
+    "better-sqlite3@12.4.6": true
   }
 }
