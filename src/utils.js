@@ -178,3 +178,134 @@ export function createTransportConfig(params) {
 		})
 	};
 }
+
+// ========== 以下为从 sublink-worker 移植的增强工具函数 ==========
+
+// 订阅内容多级解码: 直接→分行→base64→URL解码, 自动容错
+// 输入可以是: 明文节点列表 / base64编码 / URL编码, 返回字符串或字符串数组
+export function tryDecodeSubscriptionLines(input, { decodeUriComponent = false } = {}) {
+	if (typeof input !== 'string') {
+		return input;
+	}
+
+	const trimmed = input.trim();
+	if (trimmed === '') {
+		return trimmed;
+	}
+
+	const splitIfMultiple = (value) => {
+		if (typeof value !== 'string') {
+			return value;
+		}
+
+		const normalized = value.replace(/\r\n/g, '\n');
+		const segments = normalized
+			.split('\n')
+			.map(segment => segment.trim())
+			.filter(segment => segment !== '');
+
+		if (segments.length > 1 && segments.some(segment => segment.includes('://'))) {
+			return segments;
+		}
+
+		return normalized.trim();
+	};
+
+	const directResult = splitIfMultiple(trimmed);
+	if (Array.isArray(directResult)) {
+		return directResult;
+	}
+	if (typeof directResult === 'string' && directResult.includes('://')) {
+		return directResult;
+	}
+
+	try {
+		let decoded = decodeBase64(trimmed);
+		if (decodeUriComponent && decoded.includes('%')) {
+			const hasProtocolScheme = decoded.includes('://');
+			if (!hasProtocolScheme) {
+				try {
+					decoded = decodeURIComponent(decoded);
+				} catch (_) {
+					// ignore URI decode errors and fall back to the decoded string
+				}
+			}
+		}
+
+		const decodedResult = splitIfMultiple(decoded);
+		if (Array.isArray(decodedResult)) {
+			return decodedResult;
+		}
+		if (typeof decodedResult === 'string' && decodedResult.includes('://')) {
+			return decodedResult;
+		}
+	} catch (_) {
+		// ignore decoding errors and return the original trimmed input
+	}
+
+	// 兼容原有行为: 若输入含 % 编码且非 base64, 尝试 URL 解码兜底
+	if (decodeUriComponent && trimmed.includes('%')) {
+		try {
+			const uriDecoded = decodeURIComponent(trimmed);
+			const uriResult = splitIfMultiple(uriDecoded);
+			if (Array.isArray(uriResult)) {
+				return uriResult;
+			}
+			if (typeof uriResult === 'string' && uriResult.includes('://')) {
+				return uriResult;
+			}
+		} catch (_) {
+			// ignore URI decode errors
+		}
+	}
+
+	return trimmed;
+}
+
+// 解析布尔值: 支持 true/false/1/0/字符串
+// 无法识别时返回 fallback(默认 undefined)
+export function parseBool(value, fallback = undefined) {
+	if (value === undefined || value === null) return fallback;
+	if (typeof value === 'boolean') return value;
+	const lowered = String(value).toLowerCase();
+	if (lowered === 'true' || lowered === '1') return true;
+	if (lowered === 'false' || lowered === '0') return false;
+	return fallback;
+}
+
+// 安全解析数字: 非数字返回 undefined
+export function parseMaybeNumber(value) {
+	if (value === undefined || value === null) return undefined;
+	const num = Number(value);
+	return Number.isNaN(num) ? undefined : num;
+}
+
+// 逗号分隔字符串 → 数组 (自动 trim 并过滤空项)
+// 输入: "US,JP, HK" → ["US","JP","HK"]
+export function parseArray(value) {
+	if (!value) return undefined;
+	if (Array.isArray(value)) return value;
+	return String(value)
+		.split(',')
+		.map(entry => entry.trim())
+		.filter(entry => entry.length > 0);
+}
+
+// FNV-1a 哈希: 用 URL 生成稳定 provider 名
+// 例: createStableProviderName(url) → "_auto_provider_xxxxxxxx"
+const FNV_32_OFFSET_BASIS = 0x811c9dc5;
+const FNV_32_PRIME = 0x01000193;
+export function createStableProviderName(url) {
+	if (typeof url !== 'string' || url.trim() === '') {
+		throw new Error('Provider URL must be a non-empty string');
+	}
+
+	const normalizedUrl = url.trim();
+	let hash = FNV_32_OFFSET_BASIS;
+	for (let i = 0; i < normalizedUrl.length; i++) {
+		hash ^= normalizedUrl.charCodeAt(i);
+		hash = Math.imul(hash, FNV_32_PRIME);
+	}
+
+	return `_auto_provider_${(hash >>> 0).toString(36)}`;
+}

@@ -8,6 +8,27 @@ export const SURGE_SITE_RULE_SET_BASEURL = 'https://gh-proxy.com/https://github.
 export const SURGE_IP_RULE_SET_BASEURL = 'https://gh-proxy.com/https://github.com/NSZA156/surge-geox-rules/raw/refs/heads/release/geo/geoip/'
 // Custom rules
 export const CUSTOM_RULES = [];
+
+// Rule names that should default to DIRECT instead of Node Select
+export const DIRECT_DEFAULT_RULES = new Set(['Private', 'Location:CN']);
+// Rule names that should be rejected directly (e.g. Ad Block)
+export const REJECT_ACTION_RULES = new Set(['Ad Block']);
+
+/**
+ * Convert a value into a trimmed string array.
+ * Handles arrays, comma-separated strings, and empty values.
+ */
+export function toStringArray(value) {
+	if (Array.isArray(value)) {
+		return value
+			.filter(x => typeof x === 'string').map(x => x.trim())
+			.filter(Boolean);
+	}
+	if (typeof value === 'string') {
+		return value.split(',').map(x => x.trim()).filter(Boolean);
+	}
+	return [];
+}
 // Unified rule structure
 export const UNIFIED_RULES = [
 	{
@@ -195,12 +216,13 @@ export function generateRules(selectedRules = [], customRules = []) {
 	customRules.reverse();
 	customRules.forEach((rule) => {
 		rules.unshift({
-			site_rules: rule.site.split(','),
-			ip_rules: rule.ip.split(','),
-			domain_suffix: rule.domain_suffix ? rule.domain_suffix.split(',') : [],
-			domain_keyword: rule.domain_keyword ? rule.domain_keyword.split(',') : [],
-			ip_cidr: rule.ip_cidr ? rule.ip_cidr.split(',') : [],
-			protocol: rule.protocol ? rule.protocol.split(',') : [],
+			site_rules: toStringArray(rule.site),
+			ip_rules: toStringArray(rule.ip),
+			domain_suffix: toStringArray(rule.domain_suffix),
+			domain_keyword: toStringArray(rule.domain_keyword),
+			ip_cidr: toStringArray(rule.ip_cidr),
+			src_ip_cidr: toStringArray(rule.src_ip_cidr),
+			protocol: toStringArray(rule.protocol),
 			outbound: rule.name
 		});
 		});
@@ -259,36 +281,33 @@ export function generateRuleSets(selectedRules = [], customRules = []) {
 
   if(customRules){
 	customRules.forEach(rule => {
-		if(rule.site!=''){
-			rule.site.split(',').forEach(site => {
-				site_rule_sets.push({
-					tag: site.trim(),
-					type: 'remote',
-					format: 'binary',
-					url: `${SITE_RULE_SET_BASE_URL}geosite-${site.trim()}.srs`,
-				});
+		toStringArray(rule.site).forEach(site => {
+			site_rule_sets.push({
+				tag: site.trim(),
+				type: 'remote',
+				format: 'binary',
+				url: `${SITE_RULE_SET_BASE_URL}geosite-${site.trim()}.srs`,
 			});
-		}
-		if(rule.ip!=''){
-			rule.ip.split(',').forEach(ip => {
-				ip_rule_sets.push({
-					tag: `${ip.trim()}-ip`,
-					type: 'remote',
-					format: 'binary',
-					url: `${IP_RULE_SET_BASE_URL}geoip-${ip.trim()}.srs`,
-				});
+		});
+		toStringArray(rule.ip).forEach(ip => {
+			ip_rule_sets.push({
+				tag: `${ip.trim()}-ip`,
+				type: 'remote',
+				format: 'binary',
+				url: `${IP_RULE_SET_BASE_URL}geoip-${ip.trim()}.srs`,
 			});
-		}
+		});
 	});
-	}
+  }
 
   ruleSets.push(...site_rule_sets, ...ip_rule_sets);
 
   return { site_rule_sets, ip_rule_sets };
 }
 
-// Generate rule sets for Clash using .mrs format
-export function generateClashRuleSets(selectedRules = [], customRules = []) {
+// Generate rule sets for Clash using .mrs (default) or .yaml format
+// Legacy Clash clients (pre-mihomo) don't support .mrs, fall back to .yaml
+export function generateClashRuleSets(selectedRules = [], customRules = [], useMrs = true) {
   if (typeof selectedRules === 'string' && PREDEFINED_RULE_SETS[selectedRules]) {
     selectedRules = PREDEFINED_RULE_SETS[selectedRules];
   }
@@ -296,6 +315,10 @@ export function generateClashRuleSets(selectedRules = [], customRules = []) {
   if (!selectedRules || selectedRules.length === 0) {
     selectedRules = PREDEFINED_RULE_SETS.minimal;
   }
+
+  // Determine format based on client compatibility
+  const format = useMrs ? 'mrs' : 'yaml';
+  const ext = useMrs ? '.mrs' : '.yaml';
 
   const selectedRulesSet = new Set(selectedRules);
 
@@ -315,10 +338,10 @@ export function generateClashRuleSets(selectedRules = [], customRules = []) {
   Array.from(siteRuleSets).forEach(rule => {
     site_rule_providers[rule] = {
       type: 'http',
-      format: 'mrs',
+      format: format,
       behavior: 'domain',
-      url: `${CLASH_SITE_RULE_SET_BASE_URL}${CLASH_SITE_RULE_SETS[rule]}`,
-      path: `./ruleset/${CLASH_SITE_RULE_SETS[rule]}`,
+      url: `${CLASH_SITE_RULE_SET_BASE_URL}${rule}${ext}`,
+      path: `./ruleset/${rule}${ext}`,
       interval: 86400
     };
   });
@@ -326,10 +349,10 @@ export function generateClashRuleSets(selectedRules = [], customRules = []) {
   Array.from(ipRuleSets).forEach(rule => {
     ip_rule_providers[rule] = {
       type: 'http',
-      format: 'mrs',
+      format: format,
       behavior: 'ipcidr',
-      url: `${CLASH_IP_RULE_SET_BASE_URL}${CLASH_IP_RULE_SETS[rule]}`,
-      path: `./ruleset/${CLASH_IP_RULE_SETS[rule]}`,
+      url: `${CLASH_IP_RULE_SET_BASE_URL}${rule}${ext}`,
+      path: `./ruleset/${rule}${ext}`,
       interval: 86400
     };
   });
@@ -338,10 +361,10 @@ export function generateClashRuleSets(selectedRules = [], customRules = []) {
   if(!selectedRules.includes('Non-China')){
     site_rule_providers['geolocation-!cn'] = {
       type: 'http',
-      format: 'mrs',
+      format: format,
       behavior: 'domain',
-      url: `${CLASH_SITE_RULE_SET_BASE_URL}geolocation-!cn.mrs`,
-      path: './ruleset/geolocation-!cn.mrs',
+      url: `${CLASH_SITE_RULE_SET_BASE_URL}geolocation-!cn${ext}`,
+      path: `./ruleset/geolocation-!cn${ext}`,
       interval: 86400
     };
   }
@@ -349,32 +372,28 @@ export function generateClashRuleSets(selectedRules = [], customRules = []) {
   // Add custom rules
   if(customRules){
     customRules.forEach(rule => {
-      if(rule.site!=''){
-        rule.site.split(',').forEach(site => {
-          const site_trimmed = site.trim();
-          site_rule_providers[site_trimmed] = {
-            type: 'http',
-            format: 'mrs',
-            behavior: 'domain',
-            url: `${CLASH_SITE_RULE_SET_BASE_URL}${site_trimmed}.mrs`,
-            path: `./ruleset/${site_trimmed}.mrs`,
-            interval: 86400
-          };
-        });
-      }
-      if(rule.ip!=''){
-        rule.ip.split(',').forEach(ip => {
-          const ip_trimmed = ip.trim();
-          ip_rule_providers[ip_trimmed] = {
-            type: 'http',
-            format: 'mrs',
-            behavior: 'ipcidr',
-            url: `${CLASH_IP_RULE_SET_BASE_URL}${ip_trimmed}.mrs`,
-            path: `./ruleset/${ip_trimmed}.mrs`,
-            interval: 86400
-          };
-        });
-      }
+      toStringArray(rule.site).forEach(site => {
+        const site_trimmed = site.trim();
+        site_rule_providers[site_trimmed] = {
+          type: 'http',
+          format: format,
+          behavior: 'domain',
+          url: `${CLASH_SITE_RULE_SET_BASE_URL}${site_trimmed}${ext}`,
+          path: `./ruleset/${site_trimmed}${ext}`,
+          interval: 86400
+        };
+      });
+      toStringArray(rule.ip).forEach(ip => {
+        const ip_trimmed = ip.trim();
+        ip_rule_providers[ip_trimmed] = {
+          type: 'http',
+          format: format,
+          behavior: 'ipcidr',
+          url: `${CLASH_IP_RULE_SET_BASE_URL}${ip_trimmed}${ext}`,
+          path: `./ruleset/${ip_trimmed}${ext}`,
+          interval: 86400
+        };
+      });
     });
   }
 

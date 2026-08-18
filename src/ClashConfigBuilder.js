@@ -1,8 +1,35 @@
 import yaml from 'js-yaml';
-import { CLASH_CONFIG, generateRules, generateClashRuleSets, getOutbounds, PREDEFINED_RULE_SETS } from './config.js';
+import { CLASH_CONFIG, generateRules, generateClashRuleSets, getOutbounds, PREDEFINED_RULE_SETS, DIRECT_DEFAULT_RULES, REJECT_ACTION_RULES } from './config.js';
 import { BaseConfigBuilder } from './BaseConfigBuilder.js';
 import { DeepCopy } from './utils.js';
 import { t } from './i18n/index.js';
+
+// Determine whether the client supports MRS rule-provider format.
+// Clash Meta/mihomo and derivatives support .mrs; legacy Clash does not.
+function supportsMrsFormat(userAgent) {
+    if (!userAgent) return true; // Default to mrs for unknown clients
+    const ua = userAgent.toLowerCase();
+
+    // Clients confirmed to support MRS format (Clash Meta/mihomo based)
+    if (ua.includes('mihomo') ||
+        ua.includes('meta') ||
+        ua.includes('clash-verge') ||
+        ua.includes('stash') ||
+        ua.includes('verge')) {
+        return true;
+    }
+
+    // Legacy clients that don't support MRS format
+    if (ua.includes('merlin') ||
+        ua.includes('clashforwindows') ||
+        ua.includes('clashforandroid') ||
+        ua.includes('clash/')) {
+        return false;
+    }
+
+    // Default: use mrs for unknown clients (most modern clients support it)
+    return true;
+}
 
 export class ClashConfigBuilder extends BaseConfigBuilder {
     constructor(inputString, selectedRules, customRules, baseConfig, lang, userAgent) {
@@ -230,10 +257,17 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
     addOutboundGroups(outbounds, proxyList) {
         outbounds.forEach(outbound => {
             if (outbound !== t('outboundNames.Node Select')) {
+                // Rules that should be rejected directly (e.g. Ad Block) don't need a group
+                if (REJECT_ACTION_RULES.has(outbound)) return;
+                let proxies = [t('outboundNames.Node Select'), ...proxyList];
+                // For rules that should default to DIRECT, move DIRECT to the front
+                if (DIRECT_DEFAULT_RULES.has(outbound)) {
+                    proxies = ['DIRECT', ...proxies.filter(p => p !== 'DIRECT')];
+                }
                 this.config['proxy-groups'].push({
                     type: "select",
                     name: t(`outboundNames.${outbound}`),
-                    proxies: [t('outboundNames.Node Select'), ...proxyList]
+                    proxies
                 });
             }
         });
@@ -264,12 +298,23 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
         return generateRules(this.selectedRules, this.customRules);
     }
 
+    // Resolve rule outbound target, mapping Ad Block (and REJECT rules) to REJECT
+    resolveOutbound(rule) {
+        if (REJECT_ACTION_RULES.has(rule?.outbound) || rule?.outbound === 'REJECT') {
+            return 'REJECT';
+        }
+        return t(`outboundNames.${rule.outbound}`);
+    }
+
     formatConfig() {
         const rules = this.generateRules();
         const ruleResults = [];
 
-        // 获取.mrs规则集配置
-        const { site_rule_providers, ip_rule_providers } = generateClashRuleSets(this.selectedRules, this.customRules);
+        // Determine rule-provider format based on client support (.mrs vs .yaml)
+        const useMrs = supportsMrsFormat(this.userAgent);
+
+        // Get rule-provider config
+        const { site_rule_providers, ip_rule_providers } = generateClashRuleSets(this.selectedRules, this.customRules, useMrs);
 
         // 添加规则集提供者
         this.config['rule-providers'] = {
@@ -281,30 +326,36 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
         // 规则集和域集：用于减少 DNS 泄漏和不必要的 DNS 查询,
         // 域规则和非 IP 规则必须先于 IP 规则
 
+        rules.filter(rule => Array.isArray(rule.src_ip_cidr) && rule.src_ip_cidr.length > 0).map(rule => {
+            rule.src_ip_cidr.forEach(cidr => {
+                ruleResults.push(`SRC-IP-CIDR,${cidr},${this.resolveOutbound(rule)}`);
+            });
+        });
+
         rules.filter(rule => !!rule.domain_suffix || !!rule.domain_keyword).map(rule => {
             rule.domain_suffix.forEach(suffix => {
-                ruleResults.push(`DOMAIN-SUFFIX,${suffix},${t('outboundNames.'+ rule.outbound)}`);
+                ruleResults.push(`DOMAIN-SUFFIX,${suffix},${this.resolveOutbound(rule)}`);
             });
             rule.domain_keyword.forEach(keyword => {
-                ruleResults.push(`DOMAIN-KEYWORD,${keyword},${t('outboundNames.'+ rule.outbound)}`);
+                ruleResults.push(`DOMAIN-KEYWORD,${keyword},${this.resolveOutbound(rule)}`);
             });
         });
 
         rules.filter(rule => !!rule.site_rules[0]).map(rule => {
             rule.site_rules.forEach(site => {
-                ruleResults.push(`RULE-SET,${site},${t('outboundNames.'+ rule.outbound)}`);
+                ruleResults.push(`RULE-SET,${site},${this.resolveOutbound(rule)}`);
             });
         });
 
         rules.filter(rule => !!rule.ip_rules[0]).map(rule => {
             rule.ip_rules.forEach(ip => {
-                ruleResults.push(`RULE-SET,${ip},${t('outboundNames.'+ rule.outbound)},no-resolve`);
+                ruleResults.push(`RULE-SET,${ip},${this.resolveOutbound(rule)},no-resolve`);
             });
         });
 
         rules.filter(rule => !!rule.ip_cidr).map(rule => {
             rule.ip_cidr.forEach(cidr => {
-                ruleResults.push(`IP-CIDR,${cidr},${t('outboundNames.'+ rule.outbound)},no-resolve`);
+                ruleResults.push(`IP-CIDR,${cidr},${this.resolveOutbound(rule)},no-resolve`);
             });
         });
 

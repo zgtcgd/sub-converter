@@ -1,5 +1,5 @@
 import { BaseConfigBuilder } from './BaseConfigBuilder.js';
-import { SURGE_CONFIG, SURGE_SITE_RULE_SET_BASEURL, SURGE_IP_RULE_SET_BASEURL, generateRules, getOutbounds, PREDEFINED_RULE_SETS } from './config.js';
+import { SURGE_CONFIG, SURGE_SITE_RULE_SET_BASEURL, SURGE_IP_RULE_SET_BASEURL, generateRules, getOutbounds, PREDEFINED_RULE_SETS, DIRECT_DEFAULT_RULES, REJECT_ACTION_RULES } from './config.js';
 import { t } from './i18n/index.js';
 
 export class SurgeConfigBuilder extends BaseConfigBuilder {
@@ -174,8 +174,15 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
     addOutboundGroups(outbounds, proxyList) {
         outbounds.forEach(outbound => {
             if (outbound !== t('outboundNames.Node Select')) {
+                // Rules that should be rejected directly (e.g. Ad Block) don't need a group
+                if (REJECT_ACTION_RULES.has(outbound)) return;
+                let options = [t('outboundNames.Node Select')];
+                // For rules that should default to DIRECT, move DIRECT to the front
+                if (DIRECT_DEFAULT_RULES.has(outbound)) {
+                    options = ['DIRECT', ...options.filter(p => p !== 'DIRECT')];
+                }
                 this.config['proxy-groups'].push(
-                    this.createProxyGroup(t(`outboundNames.${outbound}`), 'select', [t('outboundNames.Node Select')])
+                    this.createProxyGroup(t(`outboundNames.${outbound}`), 'select', options)
                 );
             }
         });
@@ -195,6 +202,14 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
         this.config['proxy-groups'].push(
             this.createProxyGroup(t('outboundNames.Fall Back'), 'select', [t('outboundNames.Node Select')])
         );
+    }
+
+    // Resolve rule outbound target, mapping Ad Block (and REJECT rules) to REJECT
+    resolveOutbound(rule) {
+        if (REJECT_ACTION_RULES.has(rule?.outbound) || rule?.outbound === 'REJECT') {
+            return 'REJECT';
+        }
+        return t(`outboundNames.${rule.outbound}`);
     }
 
     formatConfig() {
@@ -236,33 +251,51 @@ export class SurgeConfigBuilder extends BaseConfigBuilder {
         // Rule-Set & Domain Rules & IP Rules:  To reduce DNS leaks and unnecessary DNS queries,
         // domain & non-IP rules must precede IP rules
 
+        rules.filter(rule => Array.isArray(rule.src_ip_cidr) && rule.src_ip_cidr.length > 0).map(rule => {
+            rule.src_ip_cidr.forEach(cidr => {
+                const value = typeof cidr === 'string' ? cidr.trim() : cidr;
+                if (!value) return;
+                const safeValue = typeof value === 'string' ? value.replace(/[\r\n]+/g, '').trim() : value;
+                if (!safeValue) return;
+
+                // Surge supports SRC-IP (single IP). Best-effort: downgrade /32 CIDR to SRC-IP.
+                if (typeof safeValue === 'string' && safeValue.endsWith('/32')) {
+                    finalConfig.push(`SRC-IP,${safeValue.slice(0, -3)},${this.resolveOutbound(rule)}`);
+                } else if (typeof safeValue === 'string' && !safeValue.includes('/')) {
+                    finalConfig.push(`SRC-IP,${safeValue},${this.resolveOutbound(rule)}`);
+                } else if (typeof safeValue === 'string' && safeValue.includes('/')) {
+                    finalConfig.push(`# SRC-IP-CIDR not supported by Surge, skipped: ${safeValue}`);
+                }
+            });
+        });
+
         rules.filter(rule => !!rule.domain_suffix).map(rule => {
             rule.domain_suffix.forEach(suffix => {
-                finalConfig.push(`DOMAIN-SUFFIX,${suffix},${t('outboundNames.'+ rule.outbound)}`);
+                finalConfig.push(`DOMAIN-SUFFIX,${suffix},${this.resolveOutbound(rule)}`);
             });
         });
 
         rules.filter(rule => !!rule.domain_keyword).map(rule => {
             rule.domain_keyword.forEach(keyword => {
-                finalConfig.push(`DOMAIN-KEYWORD,${keyword},${t('outboundNames.'+ rule.outbound)}`);
+                finalConfig.push(`DOMAIN-KEYWORD,${keyword},${this.resolveOutbound(rule)}`);
             });
         });
 
         rules.filter(rule => rule.site_rules[0] !== '').map(rule => {
             rule.site_rules.forEach(site => {
-                finalConfig.push(`RULE-SET,${SURGE_SITE_RULE_SET_BASEURL}${site}.conf,${t('outboundNames.'+ rule.outbound)}`);
+                finalConfig.push(`RULE-SET,${SURGE_SITE_RULE_SET_BASEURL}${site}.conf,${this.resolveOutbound(rule)}`);
             });
         });
 
         rules.filter(rule => rule.ip_rules[0] !== '').map(rule => {
             rule.ip_rules.forEach(ip => {
-                finalConfig.push(`RULE-SET,${SURGE_IP_RULE_SET_BASEURL}${ip}.txt,${t('outboundNames.'+ rule.outbound)},no-resolve`);
+                finalConfig.push(`RULE-SET,${SURGE_IP_RULE_SET_BASEURL}${ip}.txt,${this.resolveOutbound(rule)},no-resolve`);
             });
         });
 
         rules.filter(rule => !!rule.ip_cidr).map(rule => {
             rule.ip_cidr.forEach(cidr => {
-                finalConfig.push(`IP-CIDR,${cidr},${t('outboundNames.'+ rule.outbound)},no-resolve`);
+                finalConfig.push(`IP-CIDR,${cidr},${this.resolveOutbound(rule)},no-resolve`);
             });
         });
 
