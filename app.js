@@ -69,6 +69,7 @@ async function restoreAutoUpdateTasks() {
 
             // 存储到内存中
             autoUpdateTasks.set(shortCode, {
+                shortCode,
                 intervalId,
                 originalUrl,
                 selectedRules,
