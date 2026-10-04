@@ -19,7 +19,7 @@ db.prepare(`
 // 创建自动更新任务表
 db.prepare(`
 CREATE TABLE IF NOT EXISTS auto_update_tasks (
-  shortCode TEXT PRIMARY KEY,
+  shortCode TEXT PRIMARY KEY NOT NULL,
   originalUrl TEXT NOT NULL,
   selectedRules TEXT,
   customRules TEXT,
@@ -34,6 +34,9 @@ CREATE TABLE IF NOT EXISTS auto_update_tasks (
 function now() {
   return Math.floor(Date.now() / 1000);
 }
+
+// 清理历史遗留的 shortCode 为 NULL 的脏数据（旧版本重启后定时任务写入的）
+db.prepare('DELETE FROM auto_update_tasks WHERE shortCode IS NULL').run();
 
 export function kvPut(key, value, { expirationTtl } = {}) {
   let expire_at = null;
@@ -60,6 +63,9 @@ export function kvGet(key) {
 // 新增：保存自动更新任务
 export function saveAutoUpdateTask(taskData) {
   const { shortCode, originalUrl, selectedRules, customRules, userAgent, configId, lastUpdate, intervalMs } = taskData;
+  if (!shortCode) {
+    throw new Error('saveAutoUpdateTask: shortCode 不能为空');
+  }
 
   db.prepare(`
   INSERT OR REPLACE INTO auto_update_tasks
