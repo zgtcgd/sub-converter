@@ -129,7 +129,9 @@ export function parseServerInfo(serverInfo) {
   }
   
   export function parseUrlParams(url) {
-	const [, rest] = url.split('://');
+	// 只剥掉协议头；不能用 split('://')，因为查询参数值里可能再出现 '://'（如 sni=https://bing.com）
+	const protocolEnd = url.indexOf('://');
+	const rest = protocolEnd === -1 ? url : url.slice(protocolEnd + 3);
 	const [addressPart, ...remainingParts] = rest.split('?');
 	const paramsPart = remainingParts.join('?');
   
