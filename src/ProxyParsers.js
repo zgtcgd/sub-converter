@@ -314,13 +314,25 @@ class Hysteria2Parser {
 
         const tls = createTlsConfig(params);
 
+        // pinSHA256 是自签证书的 SHA-256 指纹，mihomo 中对应 fingerprint 字段（证书锁定）
+        // URLSearchParams 已自动完成 URL 解码（hy2 脚本把冒号编码为 %3A）
+        if (params.pinSHA256) {
+            tls.fingerprint = params.pinSHA256.replace(/:/g, '');
+        }
+
+        // HY2_SNI 可能带协议头（如 https://bing.com），TLS ServerName 只能是裸域名
+        if (tls.server_name) {
+            tls.server_name = tls.server_name.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+        }
+
+        // 没有混淆时不要输出 obfs 字段，mihomo 只认 salamander/gecko，写空或 none 都会报错
         const obfs = {};
         if (params['obfs-password']) {
             obfs.type = params.obfs;
             obfs.password = params['obfs-password'];
         };
 
-        return {
+        const result = {
             tag: name,
             type: "hysteria2",
             server: host,
@@ -333,6 +345,9 @@ class Hysteria2Parser {
             up_mbps: params?.upmbps ? parseInt(params.upmbps) : undefined,
             down_mbps: params?.downmbps ? parseInt(params.downmbps) : undefined
         };
+
+        if (!result.obfs.type) delete result.obfs;
+        return result;
     }
 }
 

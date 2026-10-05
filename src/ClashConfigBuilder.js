@@ -149,15 +149,21 @@ export class ClashConfigBuilder extends BaseConfigBuilder {
                     type: proxy.type,
                     server: proxy.server,
                     port: proxy.server_port,
-                    obfs: proxy.obfs.type,
-                    'obfs-password': proxy.obfs.password,
+                    ...(proxy.obfs?.type ? {
+                        obfs: proxy.obfs.type,
+                        'obfs-password': proxy.obfs.password,
+                    } : {}),
                     password: proxy.password,
                     auth: proxy.auth,
                     up: proxy.up_mbps,
                     down: proxy.down_mbps,
                     'recv-window-conn': proxy.recv_window_conn,
                     sni: proxy.tls?.server_name || '',
-                    'skip-cert-verify': proxy.tls?.insecure || true,
+                    alpn: proxy.tls?.alpn,
+                    // pinSHA256 证书锁定指纹；mihomo 用 fingerprint 做 SHA-256 pinning
+                    // 指定 fingerprint 后可替代 skip-cert-verify（自签证书也能安全连接）
+                    fingerprint: proxy.tls?.fingerprint,
+                    'skip-cert-verify': proxy.tls?.insecure || false,
                 };
             case 'trojan':
                 return {
